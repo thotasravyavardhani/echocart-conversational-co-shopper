@@ -1,0 +1,189 @@
+version: "3.1"
+
+nlu:
+  - intent: greet
+    examples: |
+      - hey
+      - hello
+      - hi
+      - hello there
+      - good morning
+      - good evening
+      - hey there
+      - hi there
+      - what's up
+      - yo
+
+  - intent: goodbye
+    examples: |
+      - bye
+      - goodbye
+      - see you later
+      - see you
+      - talk to you later
+      - ttyl
+      - catch you later
+      - gotta go
+      - I'm done
+      - that's all
+
+  - intent: affirm
+    examples: |
+      - yes
+      - yeah
+      - yep
+      - sure
+      - absolutely
+      - correct
+      - right
+      - exactly
+      - of course
+      - definitely
+
+  - intent: deny
+    examples: |
+      - no
+      - nope
+      - not really
+      - I don't think so
+      - no thanks
+      - no thank you
+      - I don't want that
+      - not interested
+      - nah
+
+  - intent: thank
+    examples: |
+      - thanks
+      - thank you
+      - thank you so much
+      - thanks a lot
+      - appreciate it
+      - much appreciated
+      - thx
+      - ty
+
+  - intent: ask_recommendation
+    examples: |
+      - I need [comfortable shoes](product_category)
+      - Show me [laptops](product_category)
+      - Can you recommend [running shoes](product_category)?
+      - I'm looking for [winter jacket](product_category)
+      - Need something [cozy](mood) to wear
+      - I'm [tired](mood), show me something [comfortable](style)
+      - Looking for [gift](occasion) ideas
+      - What [shoes](product_category) would you recommend for [running](occasion)?
+      - I want [casual](style) [shirts](product_category)
+      - Show me [eco-friendly](sustainability_level) [products](product_category)
+      - I need [blue](color) [sneakers](product_category)
+      - Looking for [designer](style) [bags](product_category) under [$100](price_range)
+
+  - intent: express_mood
+    examples: |
+      - I'm feeling [lazy](mood) today
+      - I'm [excited](mood) about the weekend
+      - Feeling [stressed](mood) and need comfort
+      - I'm in a [chill](mood) mood
+      - Really [energetic](mood) right now
+      - Feeling [adventurous](mood)
+      - I'm [tired](mood) of everything
+      - In a [festive](mood) spirit
+      - Feeling [professional](mood) today
+      - I'm [relaxed](mood) and browsing
+
+  - intent: track_order
+    examples: |
+      - Track my order
+      - Where is my order [12345](order_id)?
+      - Order status for [ORD-789](order_id)
+      - When will order [54321](order_id) arrive?
+      - Check order [98765](order_id)
+      - Track [order 111](order_id)
+      - Where's my package?
+      - Delivery status
+      - When will it arrive?
+      - Is my order shipped?
+
+  - intent: return_request
+    examples: |
+      - I want to return this item
+      - How do I return a product?
+      - Return policy
+      - I need to return order [12345](order_id)
+      - Return process
+      - Can I get a return label?
+      - I don't like this item
+      - This doesn't fit
+      - Wrong size
+      - Want to send it back
+
+  - intent: ask_sustainability
+    examples: |
+      - Is this [eco-friendly](sustainability_level)?
+      - What's the [sustainability](sustainability_level) score?
+      - Show me [green](sustainability_level) products
+      - Environmentally friendly options
+      - [Sustainable](sustainability_level) products
+      - [Eco](sustainability_level) options
+      - Carbon footprint
+      - [Recyclable](sustainability_level) products
+      - Ethical brands
+      - [Organic](sustainability_level) materials
+
+  - intent: ask_product_details
+    examples: |
+      - Tell me more about this
+      - Product details
+      - What are the specifications?
+      - More info on this item
+      - What's included?
+      - Product description
+      - What's it made of?
+      - Size guide
+      - Material information
+      - Features of this product
+
+  - intent: add_to_cart
+    examples: |
+      - Add to cart
+      - I'll take this
+      - Add this item
+      - Put it in my cart
+      - I want this
+      - Add to bag
+      - Purchase this
+      - Buy this
+      - Get this for me
+      - I'll buy it
+
+  - intent: ask_business_hours
+    examples: |
+      - What are your business hours?
+      - When are you open?
+      - Operating hours
+      - Are you open today?
+      - What time do you close?
+      - Store hours
+      - When can I shop?
+      - Are you open on weekends?
+
+  - intent: out_of_scope
+    examples: |
+      - What's the weather?
+      - Tell me a joke
+      - How old are you?
+      - What's your favorite color?
+      - Do you like pizza?
+      - What's 2+2?
+      - Tell me a story
+      - Who made you?
+
+  - intent: bot_challenge
+    examples: |
+      - Are you a bot?
+      - Are you human?
+      - Am I talking to a bot?
+      - Are you real?
+      - Who are you?
+      - What are you?
+      - Are you AI?

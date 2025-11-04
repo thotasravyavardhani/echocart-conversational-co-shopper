@@ -1,0 +1,96 @@
+# Configuration for RASA NLU pipeline and policies
+recipe: default.v1
+language: en
+
+pipeline:
+  # Tokenization
+  - name: WhitespaceTokenizer
+  
+  # Featurization
+  - name: RegexFeaturizer
+  - name: LexicalSyntacticFeaturizer
+  - name: CountVectorsFeaturizer
+  - name: CountVectorsFeaturizer
+    analyzer: char_wb
+    min_ngram: 1
+    max_ngram: 4
+  
+  # Intent Classification & Entity Extraction (DIET)
+  - name: DIETClassifier
+    epochs: 100
+    batch_size: [64, 256]
+    eval_num_examples: 50
+    eval_num_epochs: 20
+    ranking_length: 10
+    
+    # Model architecture
+    hidden_layers_sizes:
+      text: [256, 128]
+    
+    # Regularization
+    weight_sparsity_fraction: 0.8
+    
+    # Learning rate
+    learning_rate: 0.001
+    
+    # Entity recognition
+    entity_recognition: true
+    
+    # Intent ranking
+    use_masked_language_model: false
+    
+    # Loss type
+    loss_type: cross_entropy
+    
+  # Entity Extraction
+  - name: EntitySynonymMapper
+  - name: ResponseSelector
+    epochs: 100
+    retrieval_intent: faq
+    
+  # Custom component for sentiment analysis
+  - name: "sentiment_analyzer.SentimentAnalyzer"
+
+# Policies for dialogue management
+policies:
+  # Rule-based policy
+  - name: RulePolicy
+    core_fallback_threshold: 0.3
+    core_fallback_action_name: "action_default_fallback"
+    enable_fallback_prediction: true
+    
+  # Memoization for exact match stories
+  - name: MemoizationPolicy
+    max_history: 5
+    
+  # Transformer Embedding Dialogue (TED) Policy
+  - name: TEDPolicy
+    max_history: 5
+    epochs: 100
+    batch_size: [32, 64]
+    
+    # Model architecture
+    hidden_layers_sizes:
+      text: [256, 128]
+      label: [128, 64]
+    
+    # Transformer configuration
+    number_of_transformer_layers: 2
+    transformer_size: 256
+    
+    # Attention
+    number_of_attention_heads: 4
+    
+    # Regularization
+    weight_sparsity_fraction: 0.8
+    drop_rate: 0.2
+    
+    # Learning rate
+    learning_rate: 0.001
+    
+    # Evaluation
+    eval_num_examples: 50
+    eval_num_epochs: 20
+
+# Assistant configuration
+assistant_id: echocart_assistant

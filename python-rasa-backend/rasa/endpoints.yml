@@ -1,0 +1,28 @@
+# Configuration for RASA endpoints
+
+action_endpoint:
+  url: "http://action-server:5055/webhook"
+
+# Tracker store (PostgreSQL for production)
+tracker_store:
+  type: sql
+  dialect: "postgresql"
+  url: "postgres"
+  db: "rasa_tracker"
+  username: "rasa"
+  password: "rasa"
+  login_db: "postgres"
+
+# Event broker (optional - for production event streaming)
+# event_broker:
+#   type: sql
+#   dialect: "postgresql"
+#   url: "postgres"
+#   db: "rasa_events"
+#   username: "rasa"
+#   password: "rasa"
+
+# Model server (optional - for production model management)
+# model_server:
+#   url: "http://model-server:5000"
+#   wait_time_between_pulls: 10

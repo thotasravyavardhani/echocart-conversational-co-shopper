@@ -1,0 +1,182 @@
+# EchoCart Domain Definition
+
+version: "3.1"
+
+intents:
+  # Greetings
+  - greet
+  - goodbye
+  - affirm
+  - deny
+  - thank
+  
+  # Product recommendation
+  - ask_recommendation
+  - ask_product_details
+  - compare_products
+  - search_products
+  
+  # Order tracking
+  - track_order
+  - ask_order_status
+  - cancel_order
+  - modify_order
+  
+  # Returns & Refunds
+  - return_request
+  - refund_request
+  - exchange_request
+  
+  # Shopping assistance
+  - add_to_cart
+  - remove_from_cart
+  - view_cart
+  - checkout
+  
+  # Account
+  - account_inquiry
+  - update_profile
+  - change_password
+  
+  # Support
+  - ask_business_hours
+  - ask_shipping_info
+  - ask_payment_methods
+  - contact_support
+  
+  # Mood-based shopping
+  - express_mood
+  - filter_by_mood
+  - casual_browsing
+  
+  # Sustainability
+  - ask_sustainability
+  - filter_eco_friendly
+  
+  # Out of scope
+  - out_of_scope
+  - bot_challenge
+
+entities:
+  - product_category
+  - product_name
+  - brand
+  - color
+  - size
+  - price_range
+  - mood
+  - occasion
+  - style
+  - order_id
+  - email
+  - phone_number
+  - sustainability_level
+
+slots:
+  user_id:
+    type: text
+    influence_conversation: false
+    mappings:
+      - type: from_text
+  
+  workspace_id:
+    type: text
+    influence_conversation: false
+    mappings:
+      - type: from_text
+  
+  session_id:
+    type: text
+    influence_conversation: false
+    mappings:
+      - type: from_text
+  
+  current_mood:
+    type: text
+    influence_conversation: true
+    mappings:
+      - type: from_entity
+        entity: mood
+  
+  product_category:
+    type: text
+    influence_conversation: true
+    mappings:
+      - type: from_entity
+        entity: product_category
+  
+  price_range:
+    type: text
+    influence_conversation: true
+    mappings:
+      - type: from_entity
+        entity: price_range
+  
+  order_id:
+    type: text
+    influence_conversation: true
+    mappings:
+      - type: from_entity
+        entity: order_id
+  
+  sentiment:
+    type: text
+    influence_conversation: true
+    mappings:
+      - type: custom
+  
+  sustainability_preference:
+    type: float
+    min_value: 0.0
+    max_value: 1.0
+    initial_value: 0.5
+    influence_conversation: true
+    mappings:
+      - type: custom
+
+responses:
+  utter_greet:
+    - text: "Hey! 👋 I'm your AI shopping companion. What are you looking for today?"
+    - text: "Hi there! Ready to find something amazing? Tell me what you need!"
+    - text: "Hello! I'm here to help you shop smarter. What's on your mind?"
+  
+  utter_goodbye:
+    - text: "Goodbye! Come back soon! 🛍️"
+    - text: "See you later! Happy shopping! ✨"
+    - text: "Take care! I'll be here when you need me!"
+  
+  utter_thank:
+    - text: "You're welcome! Anything else I can help with?"
+    - text: "Happy to help! Let me know if you need anything else!"
+    - text: "My pleasure! Feel free to ask me anything!"
+  
+  utter_default:
+    - text: "I'm not sure I understand. Could you rephrase that?"
+    - text: "Hmm, I didn't quite get that. Can you try asking differently?"
+  
+  utter_ask_mood:
+    - text: "How are you feeling today? Energetic, relaxed, adventurous?"
+    - text: "What's your vibe right now?"
+  
+  utter_processing:
+    - text: "Let me find the perfect options for you... 🔍"
+    - text: "Searching through our catalog... ⏳"
+    - text: "Give me a moment to pull up some great choices... ✨"
+
+actions:
+  # Custom actions
+  - action_recommend_products
+  - action_track_order
+  - action_visual_search
+  - action_filter_by_mood
+  - action_show_sustainability_score
+  - action_add_to_cart
+  - action_process_checkout
+  - action_handle_return
+  - action_story_mode_presentation
+  - action_save_conversation
+  - action_default_fallback
+
+session_config:
+  session_expiration_time: 60
+  carry_over_slots_to_new_session: true

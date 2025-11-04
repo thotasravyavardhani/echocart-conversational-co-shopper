@@ -1,0 +1,86 @@
+version: "3.1"
+
+stories:
+  - story: greeting and recommendation flow
+    steps:
+      - intent: greet
+      - action: utter_greet
+      - intent: ask_recommendation
+      - action: action_recommend_products
+      - intent: affirm
+      - action: action_add_to_cart
+      - intent: thank
+      - action: utter_thank
+
+  - story: mood-based shopping
+    steps:
+      - intent: greet
+      - action: utter_greet
+      - intent: express_mood
+      - slot_was_set:
+          - current_mood: "tired"
+      - action: action_filter_by_mood
+      - action: action_recommend_products
+      - intent: ask_product_details
+      - action: action_show_sustainability_score
+
+  - story: order tracking flow
+    steps:
+      - intent: greet
+      - action: utter_greet
+      - intent: track_order
+      - action: action_track_order
+      - intent: thank
+      - action: utter_thank
+      - intent: goodbye
+      - action: utter_goodbye
+
+  - story: return request flow
+    steps:
+      - intent: greet
+      - action: utter_greet
+      - intent: return_request
+      - action: action_handle_return
+      - intent: affirm
+      - action: utter_thank
+
+  - story: sustainability focused shopping
+    steps:
+      - intent: greet
+      - action: utter_greet
+      - intent: ask_sustainability
+      - action: action_filter_by_mood
+      - slot_was_set:
+          - sustainability_preference: 0.8
+      - action: action_recommend_products
+      - action: action_show_sustainability_score
+
+  - story: checkout flow
+    steps:
+      - intent: greet
+      - action: utter_greet
+      - intent: ask_recommendation
+      - action: action_recommend_products
+      - intent: add_to_cart
+      - action: action_add_to_cart
+      - intent: affirm
+      - action: action_process_checkout
+      - intent: thank
+      - action: utter_thank
+
+  - story: fallback flow
+    steps:
+      - intent: out_of_scope
+      - action: utter_default
+      - action: utter_greet
+
+  - story: bot challenge
+    steps:
+      - intent: bot_challenge
+      - action: utter_default
+
+  - story: goodbye flow
+    steps:
+      - intent: goodbye
+      - action: action_save_conversation
+      - action: utter_goodbye

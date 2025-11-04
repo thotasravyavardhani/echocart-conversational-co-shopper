@@ -1,0 +1,32 @@
+version: "3.1"
+
+rules:
+  - rule: Say goodbye anytime the user says goodbye
+    steps:
+      - intent: goodbye
+      - action: utter_goodbye
+
+  - rule: Say thanks anytime user thanks
+    steps:
+      - intent: thank
+      - action: utter_thank
+
+  - rule: Handle out of scope
+    steps:
+      - intent: out_of_scope
+      - action: utter_default
+
+  - rule: Save conversation on goodbye
+    steps:
+      - intent: goodbye
+      - action: action_save_conversation
+
+  - rule: Ask for mood if not provided
+    steps:
+      - intent: ask_recommendation
+      - action: utter_ask_mood
+
+  - rule: Activate fallback
+    steps:
+      - intent: nlu_fallback
+      - action: action_default_fallback

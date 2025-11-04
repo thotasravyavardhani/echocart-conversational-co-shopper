@@ -1,0 +1,101 @@
+version: '3.8'
+
+services:
+  # RASA Server
+  rasa:
+    image: rasa/rasa:3.6.13-full
+    ports:
+      - "5005:5005"
+    volumes:
+      - ./rasa:/app
+    command: >
+      run
+      --enable-api
+      --cors "*"
+      --debug
+    environment:
+      - RASA_MODEL_PATH=/app/models
+    networks:
+      - echocart-network
+    depends_on:
+      - postgres
+      - redis
+
+  # RASA Action Server
+  action-server:
+    build:
+      context: ./rasa
+      dockerfile: Dockerfile.actions
+    ports:
+      - "5055:5055"
+    volumes:
+      - ./rasa/actions:/app/actions
+    environment:
+      - NEXT_API_URL=http://host.docker.internal:3000/api
+      - RECOMMENDATION_API=http://recommendation-service:8001
+      - VISUAL_SEARCH_API=http://visual-search:8002
+    networks:
+      - echocart-network
+
+  # Recommendation Service
+  recommendation-service:
+    build:
+      context: ./services/recommendation
+    ports:
+      - "8001:8001"
+    environment:
+      - TURSO_CONNECTION_URL=${TURSO_CONNECTION_URL}
+      - TURSO_AUTH_TOKEN=${TURSO_AUTH_TOKEN}
+      - REDIS_URL=redis://redis:6379
+    volumes:
+      - ./services/recommendation:/app
+    networks:
+      - echocart-network
+    depends_on:
+      - redis
+
+  # Visual Search Service
+  visual-search:
+    build:
+      context: ./services/visual_search
+    ports:
+      - "8002:8002"
+    environment:
+      - CLIP_MODEL=ViT-B/32
+      - REDIS_URL=redis://redis:6379
+    volumes:
+      - ./services/visual_search:/app
+    networks:
+      - echocart-network
+    depends_on:
+      - redis
+
+  # PostgreSQL (for RASA tracker store in production)
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_USER=rasa
+      - POSTGRES_PASSWORD=rasa
+      - POSTGRES_DB=rasa_tracker
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - echocart-network
+
+  # Redis (for caching and Celery)
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - echocart-network
+
+volumes:
+  postgres-data:
+  redis-data:
+
+networks:
+  echocart-network:
+    driver: bridge
