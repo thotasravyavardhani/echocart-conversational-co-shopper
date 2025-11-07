@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/lib/authContext';
-import { MessageSquare, Loader2 } from 'lucide-react';
+import { Brain, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function RegisterPage() {
@@ -47,16 +47,16 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 via-blue-50 to-cyan-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1 text-center">
           <div className="flex justify-center mb-4">
-            <div className="rounded-full bg-indigo-600 p-3">
-              <MessageSquare className="h-8 w-8 text-white" />
+            <div className="rounded-full bg-gradient-to-r from-indigo-600 to-cyan-600 p-3">
+              <Brain className="h-8 w-8 text-white" />
             </div>
           </div>
-          <CardTitle className="text-3xl font-bold">Join EchoCart</CardTitle>
-          <CardDescription>Create your account to start building AI workspaces</CardDescription>
+          <CardTitle className="text-3xl font-bold">Join EchoChat</CardTitle>
+          <CardDescription>Create your account to start training NLU chatbot models</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">

@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Plus, Loader2, MessageSquare, Settings, LogOut, Database, Trash2 } from 'lucide-react';
+import { Plus, Loader2, MessageSquare, Settings, LogOut, Database, Trash2, Brain } from 'lucide-react';
 import { toast } from 'sonner';
 import Link from 'next/link';
 
@@ -130,13 +130,15 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-blue-50 to-cyan-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
       {/* Header */}
       <header className="border-b bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm sticky top-0 z-10">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <MessageSquare className="h-6 w-6 text-indigo-600" />
-            <h1 className="text-xl font-bold">EchoCart AI</h1>
+            <Brain className="h-6 w-6 text-indigo-600" />
+            <h1 className="text-xl font-bold bg-gradient-to-r from-indigo-600 to-cyan-600 bg-clip-text text-transparent">
+              EchoChat
+            </h1>
           </div>
           <div className="flex items-center gap-4">
             <span className="text-sm text-muted-foreground">
@@ -156,7 +158,7 @@ export default function DashboardPage() {
           <div>
             <h2 className="text-3xl font-bold mb-2">Your Workspaces</h2>
             <p className="text-muted-foreground">
-              Manage your AI training workspaces and datasets
+              Manage your NLU training workspaces and datasets
             </p>
           </div>
           <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
@@ -170,7 +172,7 @@ export default function DashboardPage() {
               <DialogHeader>
                 <DialogTitle>Create New Workspace</DialogTitle>
                 <DialogDescription>
-                  Create a new workspace for training your conversational AI models
+                  Create a new workspace for training your NLU chatbot models
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4">
@@ -216,10 +218,10 @@ export default function DashboardPage() {
         {workspaces.length === 0 ? (
           <Card className="text-center py-12">
             <CardContent>
-              <MessageSquare className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+              <Brain className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
               <h3 className="text-lg font-semibold mb-2">No workspaces yet</h3>
               <p className="text-muted-foreground mb-4">
-                Create your first workspace to start building AI models
+                Create your first workspace to start training NLU chatbot models
               </p>
               <Button onClick={() => setIsCreateOpen(true)}>
                 <Plus className="h-4 w-4 mr-2" />
@@ -235,7 +237,7 @@ export default function DashboardPage() {
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <CardTitle className="flex items-center gap-2">
-                        <MessageSquare className="h-5 w-5 text-indigo-600" />
+                        <Brain className="h-5 w-5 text-indigo-600" />
                         {workspace.name}
                       </CardTitle>
                       <CardDescription className="mt-2">
@@ -256,16 +258,12 @@ export default function DashboardPage() {
                     Created {new Date(workspace.createdAt).toLocaleDateString()}
                   </div>
                   <div className="flex gap-2">
-                    <Link href={`/chat?workspace=${workspace.id}`} className="flex-1">
+                    <Link href={`/workspace/${workspace.id}`} className="flex-1">
                       <Button variant="default" size="sm" className="w-full">
-                        <MessageSquare className="h-4 w-4 mr-2" />
-                        Open Chat
+                        <Database className="h-4 w-4 mr-2" />
+                        Open Workspace
                       </Button>
                     </Link>
-                    <Button variant="outline" size="sm">
-                      <Database className="h-4 w-4 mr-2" />
-                      Datasets
-                    </Button>
                   </div>
                 </CardContent>
               </Card>
