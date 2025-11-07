@@ -4,71 +4,107 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { MessageSquare, Package, TrendingUp, Users, Leaf, Sparkles, ShoppingCart, Zap, Heart, Star } from 'lucide-react';
+import { MessageSquare, Upload, Brain, TestTube, Database, Sparkles, ArrowRight } from 'lucide-react';
 
 export default function Home() {
   const features = [
     {
-      icon: MessageSquare,
-      title: 'AI Chat Assistant',
-      description: 'Emotion-aware conversations that understand your mood and preferences',
+      icon: Upload,
+      title: 'Upload Datasets',
+      description: 'Support for CSV, JSON, and Rasa format files up to 500MB',
       color: 'from-blue-500 to-cyan-500',
-      highlight: 'Visual Search',
     },
     {
-      icon: Package,
-      title: 'Smart Product Catalog',
-      description: 'Discover products with sustainability scoring and story mode',
+      icon: Brain,
+      title: 'Train NLU Models',
+      description: 'Train with Rasa NLU framework with real-time progress tracking',
       color: 'from-green-500 to-emerald-500',
-      highlight: '98% Eco Score',
     },
     {
-      icon: TrendingUp,
-      title: 'Predictive Tracking',
-      description: 'AI-powered delivery predictions with real-time narrative updates',
+      icon: TestTube,
+      title: 'Annotation Tool',
+      description: 'Annotate intents, entities, and tokens with visual interface',
       color: 'from-orange-500 to-amber-500',
-      highlight: 'Live ETA',
     },
     {
-      icon: Users,
-      title: 'Group Shopping',
-      description: 'Collaborative browsing, voting, and shared carts with friends',
+      icon: MessageSquare,
+      title: 'Test Chatbot',
+      description: 'Chat with your trained model and see NLU insights in real-time',
       color: 'from-purple-500 to-pink-500',
-      highlight: 'Vote Together',
     },
   ];
 
-  const stats = [
-    { value: '10M+', label: 'Happy Customers' },
-    { value: '98%', label: 'Sustainability Score' },
-    { value: '24/7', label: 'AI Support' },
-    { value: '500kg', label: 'CO₂ Saved Daily' },
+  const steps = [
+    {
+      step: '01',
+      title: 'Create Workspace',
+      description: 'Sign up and create your first workspace to organize your NLU projects',
+      icon: Database,
+    },
+    {
+      step: '02',
+      title: 'Upload Dataset',
+      description: 'Upload training data in CSV, JSON, or Rasa format',
+      icon: Upload,
+    },
+    {
+      step: '03',
+      title: 'Train Model',
+      description: 'Train your NLU model with Rasa and monitor progress in real-time',
+      icon: Brain,
+    },
+    {
+      step: '04',
+      title: 'Test & Annotate',
+      description: 'Chat with your bot, annotate responses, and refine your model',
+      icon: TestTube,
+    },
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-blue-50 to-cyan-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+      {/* Header */}
+      <header className="border-b bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm sticky top-0 z-10">
+        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Brain className="h-8 w-8 text-indigo-600" />
+            <span className="text-2xl font-bold bg-gradient-to-r from-indigo-600 to-cyan-600 bg-clip-text text-transparent">
+              EchoChat
+            </span>
+          </div>
+          <div className="flex gap-3">
+            <Button asChild variant="ghost">
+              <Link href="/login">Sign In</Link>
+            </Button>
+            <Button asChild>
+              <Link href="/register">Get Started</Link>
+            </Button>
+          </div>
+        </div>
+      </header>
+
       {/* Hero Section */}
       <section className="container mx-auto px-4 py-20">
         <div className="text-center max-w-4xl mx-auto mb-16">
           <Badge className="mb-4 px-4 py-2 text-sm" variant="outline">
             <Sparkles className="h-4 w-4 mr-2" />
-            Powered by Advanced AI
+            NLU Chatbot Training Platform
           </Badge>
-          <h1 className="text-6xl font-bold mb-6 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
-            EchoCart
+          <h1 className="text-6xl font-bold mb-6 bg-gradient-to-r from-indigo-600 via-blue-600 to-cyan-600 bg-clip-text text-transparent">
+            Train Your Own NLU Chatbot
           </h1>
           <p className="text-2xl mb-4 text-muted-foreground">
-            The Future of E-Commerce is Here
+            Upload datasets, train models, and test chatbots
           </p>
           <p className="text-lg mb-8 text-muted-foreground max-w-2xl mx-auto">
-            Experience emotion-aware shopping with AI that understands you. Get personalized recommendations,
-            visual search, predictive tracking, and shop together with friends—all while making sustainable choices.
+            A complete platform for training conversational AI. Upload your data in CSV, JSON, or Rasa format,
+            train NLU models with Rasa, annotate intents and entities, and chat with your trained bot—all in one place.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button asChild size="lg" className="text-lg px-8 py-6">
               <Link href="/register">
-                Get Started Free
-                <Sparkles className="ml-2 h-5 w-5" />
+                Start Training Free
+                <ArrowRight className="ml-2 h-5 w-5" />
               </Link>
             </Button>
             <Button asChild size="lg" variant="outline" className="text-lg px-8 py-6">
@@ -77,24 +113,10 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 max-w-4xl mx-auto mb-20">
-          {stats.map((stat) => (
-            <Card key={stat.label} className="text-center">
-              <CardContent className="pt-6">
-                <p className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-2">
-                  {stat.value}
-                </p>
-                <p className="text-sm text-muted-foreground">{stat.label}</p>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-
         {/* Features Grid */}
         <div className="max-w-6xl mx-auto mb-20">
           <h2 className="text-4xl font-bold text-center mb-12">
-            Intelligent Features for Modern Shopping
+            Everything You Need to Build NLU Chatbots
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {features.map((feature) => (
@@ -106,10 +128,7 @@ export default function Home() {
                       <feature.icon className="h-6 w-6 text-white" />
                     </div>
                     <div className="flex-1">
-                      <div className="flex items-center justify-between mb-2">
-                        <h3 className="text-xl font-semibold">{feature.title}</h3>
-                        <Badge variant="secondary">{feature.highlight}</Badge>
-                      </div>
+                      <h3 className="text-xl font-semibold mb-2">{feature.title}</h3>
                       <p className="text-muted-foreground">{feature.description}</p>
                     </div>
                   </div>
@@ -121,34 +140,9 @@ export default function Home() {
 
         {/* How It Works */}
         <div className="max-w-4xl mx-auto mb-20">
-          <h2 className="text-4xl font-bold text-center mb-12">How EchoCart Works</h2>
+          <h2 className="text-4xl font-bold text-center mb-12">How EchoChat Works</h2>
           <div className="space-y-6">
-            {[
-              {
-                step: '01',
-                title: 'Chat with AI',
-                description: 'Start a conversation with our emotion-aware AI assistant. Upload images for visual search or simply describe what you need.',
-                icon: MessageSquare,
-              },
-              {
-                step: '02',
-                title: 'Get Smart Recommendations',
-                description: 'Receive personalized product suggestions based on your mood, preferences, and sustainability goals.',
-                icon: Sparkles,
-              },
-              {
-                step: '03',
-                title: 'Shop Together',
-                description: 'Create groups, browse collaboratively, vote on products, and share a cart with friends or family.',
-                icon: Users,
-              },
-              {
-                step: '04',
-                title: 'Track with Confidence',
-                description: 'Get predictive delivery ETAs with narrative updates that tell you exactly where your order is and when it will arrive.',
-                icon: TrendingUp,
-              },
-            ].map((item) => (
+            {steps.map((item) => (
               <Card key={item.step} className="overflow-hidden">
                 <CardContent className="p-6">
                   <div className="flex items-start gap-6">
@@ -171,76 +165,17 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Sustainability Highlight */}
-        <Card className="max-w-4xl mx-auto mb-20 bg-gradient-to-r from-green-500 to-emerald-600 text-white overflow-hidden">
-          <CardContent className="p-12 text-center relative">
-            <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-32 -mt-32" />
-            <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/10 rounded-full -ml-24 -mb-24" />
-            <div className="relative z-10">
-              <Leaf className="h-16 w-16 mx-auto mb-4" />
-              <h2 className="text-4xl font-bold mb-4">Shop Sustainably</h2>
-              <p className="text-xl mb-6 text-white/90 max-w-2xl mx-auto">
-                Every product is scored for sustainability. See the carbon footprint, materials used,
-                and the story behind each item. Make informed choices for a better planet.
-              </p>
-              <Button size="lg" variant="secondary" className="bg-white text-green-600 hover:bg-gray-100">
-                Explore Eco Products
-                <Leaf className="ml-2 h-5 w-5" />
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Testimonials */}
-        <div className="max-w-6xl mx-auto mb-20">
-          <h2 className="text-4xl font-bold text-center mb-12">Loved by Shoppers Worldwide</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {[
-              {
-                name: 'Sarah Johnson',
-                role: 'Eco Enthusiast',
-                comment: 'The AI chat is incredible! It understood exactly what I was looking for and found the perfect eco-friendly products.',
-              },
-              {
-                name: 'Mike Chen',
-                role: 'Tech Lover',
-                comment: 'Group shopping changed everything. My family can finally agree on purchases before buying!',
-              },
-              {
-                name: 'Emily Davis',
-                role: 'Busy Professional',
-                comment: 'The predictive tracking is a game-changer. I always know exactly when my packages will arrive.',
-              },
-            ].map((testimonial) => (
-              <Card key={testimonial.name}>
-                <CardContent className="p-6">
-                  <div className="flex mb-3">
-                    {[...Array(5)].map((_, i) => (
-                      <Star key={i} className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                    ))}
-                  </div>
-                  <p className="text-muted-foreground mb-4 italic">"{testimonial.comment}"</p>
-                  <div>
-                    <p className="font-semibold">{testimonial.name}</p>
-                    <p className="text-sm text-muted-foreground">{testimonial.role}</p>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-
         {/* CTA Section */}
-        <Card className="max-w-4xl mx-auto bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 text-white">
+        <Card className="max-w-4xl mx-auto bg-gradient-to-r from-indigo-600 via-blue-600 to-cyan-600 text-white">
           <CardContent className="p-12 text-center">
-            <h2 className="text-4xl font-bold mb-4">Ready to Transform Your Shopping?</h2>
+            <h2 className="text-4xl font-bold mb-4">Ready to Build Your Chatbot?</h2>
             <p className="text-xl mb-8 text-white/90">
-              Join millions of happy customers experiencing the future of e-commerce today.
+              Join developers training NLU models with our simple, powerful platform.
             </p>
             <Button size="lg" variant="secondary" className="bg-white text-indigo-600 hover:bg-gray-100 text-lg px-8 py-6">
               <Link href="/register" className="flex items-center">
-                Start Your Journey
-                <Zap className="ml-2 h-5 w-5" />
+                Get Started Now
+                <Sparkles className="ml-2 h-5 w-5" />
               </Link>
             </Button>
           </CardContent>
@@ -252,18 +187,18 @@ export default function Home() {
         <div className="container mx-auto px-4 py-8">
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
             <div className="flex items-center gap-2">
-              <ShoppingCart className="h-6 w-6 text-indigo-600" />
-              <span className="text-xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-                EchoCart
+              <Brain className="h-6 w-6 text-indigo-600" />
+              <span className="text-xl font-bold bg-gradient-to-r from-indigo-600 to-cyan-600 bg-clip-text text-transparent">
+                EchoChat
               </span>
             </div>
             <p className="text-sm text-muted-foreground">
-              © 2024 EchoCart. Powered by AI. Built for sustainability.
+              © 2024 EchoChat. NLU Training Platform.
             </p>
             <div className="flex gap-4 text-sm text-muted-foreground">
               <Link href="#" className="hover:text-foreground">Privacy</Link>
               <Link href="#" className="hover:text-foreground">Terms</Link>
-              <Link href="#" className="hover:text-foreground">Contact</Link>
+              <Link href="#" className="hover:text-foreground">Docs</Link>
             </div>
           </div>
         </div>
