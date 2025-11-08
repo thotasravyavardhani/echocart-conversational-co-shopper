@@ -1,0 +1,90 @@
+version: "3.1"
+
+nlu:
+- intent: product_search
+  examples: |
+    - I want to buy [shoes](product)
+    - Show me [clothing](product)
+    - Looking for [running shoes](product)
+    - I need [headphones](product)
+    - Show me [electronics](product)
+
+- intent: sustainability
+  examples: |
+    - Show me eco-friendly products
+    - What's the most sustainable option
+    - I want green products
+    - Show me environmentally friendly items
+    - Sustainable clothing options
+
+- intent: mood_tired
+  examples: |
+    - I'm feeling tired
+    - I'm exhausted
+    - Need something cozy
+    - Feeling sleepy
+    - I'm worn out
+
+- intent: mood_stressed
+  examples: |
+    - I'm stressed out
+    - Feeling anxious
+    - Need to relax
+    - I'm overwhelmed
+    - Help me destress
+
+- intent: mood_excited
+  examples: |
+    - I feel excited
+    - I'm energized
+    - Feeling pumped
+    - I'm thrilled
+    - Full of energy
+
+- intent: mood_lazy
+  examples: |
+    - I'm feeling lazy today
+    - Just want to chill
+    - Lazy mood
+    - Want to lounge
+    - Feeling unmotivated
+
+- intent: mood_adventurous
+  examples: |
+    - Looking for adventurous gear
+    - I want outdoor stuff
+    - Feeling adventurous
+    - Ready for action
+    - Active lifestyle products
+
+- intent: track_order
+  examples: |
+    - Track my order
+    - Where is my package
+    - Order status
+    - Delivery tracking
+    - When will my order arrive
+
+- intent: price_filter
+  examples: |
+    - Show products under [100](price) dollars
+    - Items below [50](price)
+    - Budget options under [200](price)
+    - Cheap products under [75](price)
+    - Affordable items below [150](price)
+
+- intent: help
+  examples: |
+    - I need help
+    - Help me
+    - What can you do
+    - How does this work
+    - Assist me
+
+- intent: greet
+  examples: |
+    - Hello
+    - Hi there
+    - Hey
+    - Good morning
+    - What's up

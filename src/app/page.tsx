@@ -4,9 +4,19 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { MessageSquare, Upload, Brain, TestTube, Database, Sparkles, ArrowRight } from 'lucide-react';
+import { MessageSquare, Upload, Brain, TestTube, Database, Sparkles, ArrowRight, CheckCircle2, AlertCircle } from 'lucide-react';
+import { useEffect, useState } from 'react';
 
 export default function Home() {
+  const [backendStatus, setBackendStatus] = useState<'checking' | 'online' | 'offline'>('checking');
+
+  useEffect(() => {
+    // Check Python backend status
+    fetch('http://localhost:8000/health')
+      .then(res => res.ok ? setBackendStatus('online') : setBackendStatus('offline'))
+      .catch(() => setBackendStatus('offline'));
+  }, []);
+
   const features = [
     {
       icon: Upload,
@@ -72,7 +82,17 @@ export default function Home() {
               EchoChat
             </span>
           </div>
-          <div className="flex gap-3">
+          <div className="flex gap-3 items-center">
+            {/* Backend Status Indicator */}
+            <Badge 
+              variant={backendStatus === 'online' ? 'default' : backendStatus === 'offline' ? 'destructive' : 'secondary'}
+              className="hidden sm:flex"
+            >
+              {backendStatus === 'checking' && <Sparkles className="h-3 w-3 mr-1 animate-spin" />}
+              {backendStatus === 'online' && <CheckCircle2 className="h-3 w-3 mr-1" />}
+              {backendStatus === 'offline' && <AlertCircle className="h-3 w-3 mr-1" />}
+              Backend: {backendStatus === 'checking' ? 'Checking...' : backendStatus === 'online' ? 'Online' : 'Offline'}
+            </Badge>
             <Button asChild variant="ghost">
               <Link href="/login">Sign In</Link>
             </Button>
@@ -82,6 +102,41 @@ export default function Home() {
           </div>
         </div>
       </header>
+
+      {/* Backend Status Banner */}
+      {backendStatus === 'offline' && (
+        <div className="bg-amber-50 dark:bg-amber-900/20 border-b border-amber-200 dark:border-amber-800">
+          <div className="container mx-auto px-4 py-3">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="h-5 w-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <p className="text-sm font-medium text-amber-900 dark:text-amber-100">
+                  Python Backend Offline - Limited Functionality
+                </p>
+                <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">
+                  To enable dataset validation and model training, start the backend: 
+                  <code className="mx-1 px-2 py-0.5 bg-amber-100 dark:bg-amber-900 rounded text-amber-900 dark:text-amber-100">
+                    cd python-rasa-backend && ./start.sh
+                  </code>
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {backendStatus === 'online' && (
+        <div className="bg-green-50 dark:bg-green-900/20 border-b border-green-200 dark:border-green-800">
+          <div className="container mx-auto px-4 py-3">
+            <div className="flex items-center gap-3">
+              <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400 flex-shrink-0" />
+              <p className="text-sm font-medium text-green-900 dark:text-green-100">
+                All systems operational! Ready to train NLU models.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Hero Section */}
       <section className="container mx-auto px-4 py-20">
