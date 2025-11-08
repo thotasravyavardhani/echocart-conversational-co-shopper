@@ -36,36 +36,66 @@ export async function POST(
 
     const datasetRecord = dataset[0];
 
-    // Call Python backend for validation
-    const pythonResponse = await fetch(`${PYTHON_BACKEND_URL}/datasets/validate`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        dataset_id: datasetId,
-        file_path: datasetRecord.fileUrl,
-        format: datasetRecord.format,
-      }),
-    });
+    try {
+      // Call Python backend for validation
+      const pythonResponse = await fetch(`${PYTHON_BACKEND_URL}/datasets/validate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          dataset_id: datasetId,
+          file_path: datasetRecord.fileUrl,
+          format: datasetRecord.format,
+        }),
+      });
 
-    if (!pythonResponse.ok) {
-      throw new Error('Python backend validation failed');
+      if (!pythonResponse.ok) {
+        throw new Error('Python backend validation failed');
+      }
+
+      const validationResult = await pythonResponse.json();
+
+      // Update database with validation results
+      await db
+        .update(datasets)
+        .set({
+          status: validationResult.valid ? 'validated' : 'error',
+          intents: validationResult.intents || [],
+          entities: validationResult.entities || [],
+          sampleCount: validationResult.sample_count || 0,
+          validationReport: validationResult.errors && validationResult.errors.length > 0 
+            ? { errors: validationResult.errors } 
+            : null,
+          updatedAt: new Date().toISOString(),
+        })
+        .where(eq(datasets.id, datasetId));
+
+      return NextResponse.json(validationResult, { status: 200 });
+    } catch (pythonError) {
+      console.error('Python backend error:', pythonError);
+      
+      // Update status to error if Python backend is unavailable
+      await db
+        .update(datasets)
+        .set({
+          status: 'error',
+          validationReport: { 
+            errors: ['Python backend unavailable. Please make sure it is running on port 8000.'] 
+          },
+          updatedAt: new Date().toISOString(),
+        })
+        .where(eq(datasets.id, datasetId));
+
+      return NextResponse.json(
+        { 
+          valid: false, 
+          errors: ['Python backend unavailable. Start it with: cd python-rasa-backend && ./start.sh'],
+          intents: [],
+          entities: [],
+          sample_count: 0
+        },
+        { status: 200 } // Return 200 so frontend can display the error gracefully
+      );
     }
-
-    const validationResult = await pythonResponse.json();
-
-    // Update database with validation results
-    await db
-      .update(datasets)
-      .set({
-        status: validationResult.valid ? 'validated' : 'error',
-        intents: validationResult.intents || [],
-        entities: validationResult.entities || [],
-        sampleCount: validationResult.sample_count || 0,
-        updatedAt: new Date().toISOString(),
-      })
-      .where(eq(datasets.id, datasetId));
-
-    return NextResponse.json(validationResult, { status: 200 });
   } catch (error) {
     console.error('Validation error:', error);
     return NextResponse.json(
