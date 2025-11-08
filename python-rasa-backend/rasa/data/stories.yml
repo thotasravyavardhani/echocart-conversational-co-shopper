@@ -33,6 +33,7 @@ stories:
       - intent: thank
       - action: utter_thank
       - intent: goodbye
+      - action: action_save_conversation
       - action: utter_goodbye
 
   - story: return request flow
@@ -72,7 +73,6 @@ stories:
     steps:
       - intent: out_of_scope
       - action: utter_default
-      - action: utter_greet
 
   - story: bot challenge
     steps:
