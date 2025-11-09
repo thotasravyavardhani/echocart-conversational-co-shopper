@@ -26,7 +26,8 @@ import {
   Tag,
   AlertCircle,
   PlayCircle,
-  Download
+  Download,
+  RefreshCw
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -81,6 +82,7 @@ export default function WorkspacePage() {
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [activeTab, setActiveTab] = useState('datasets');
   const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Fetch workspace data
   useEffect(() => {
@@ -114,6 +116,7 @@ export default function WorkspacePage() {
 
   const fetchDatasets = async () => {
     try {
+      setIsRefreshing(true);
       const response = await fetch(`/api/workspaces/${workspaceId}/datasets`);
       if (response.ok) {
         const data = await response.json();
@@ -123,6 +126,7 @@ export default function WorkspacePage() {
       console.error('Failed to fetch datasets:', error);
     } finally {
       setIsLoadingData(false);
+      setIsRefreshing(false);
     }
   };
 
@@ -223,8 +227,10 @@ export default function WorkspacePage() {
       const result = await response.json();
       toast.success('Dataset uploaded successfully! Validating...');
       
-      // Refresh datasets list
-      await fetchDatasets();
+      // Wait a moment for validation to complete, then refresh
+      setTimeout(() => {
+        fetchDatasets();
+      }, 8000); // 8 second delay to allow validation to complete
 
     } catch (error) {
       console.error('Upload error:', error);
@@ -455,7 +461,18 @@ export default function WorkspacePage() {
             </Card>
 
             <div className="space-y-4">
-              <h3 className="text-lg font-semibold">Uploaded Datasets</h3>
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold">Uploaded Datasets</h3>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={fetchDatasets}
+                  disabled={isRefreshing}
+                >
+                  <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+                  Refresh
+                </Button>
+              </div>
               {datasets.length === 0 ? (
                 <Card>
                   <CardContent className="py-12 text-center">
