@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Avatar } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Loader2, Send, ArrowLeft, ShoppingCart, Heart, Sparkles, Bot, User } from 'lucide-react';
+import { Loader2, Send, ArrowLeft, ShoppingCart, Heart, Sparkles, Bot, User, CheckCircle2, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface Message {
@@ -20,6 +20,7 @@ interface Message {
   products?: Product[];
   sentiment?: string;
   mood?: string;
+  modelUsed?: boolean;
 }
 
 interface Product {
@@ -43,6 +44,7 @@ export default function ChatPage() {
   const [inputMessage, setInputMessage] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [isSending, setIsSending] = useState(false);
+  const [hasTrainedModel, setHasTrainedModel] = useState(false);
   const [sessionId] = useState(() => `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
@@ -58,6 +60,26 @@ export default function ChatPage() {
       router.push('/dashboard');
     }
   }, [workspaceId, router]);
+
+  // Check if workspace has trained model
+  useEffect(() => {
+    if (workspaceId) {
+      checkTrainedModel();
+    }
+  }, [workspaceId]);
+
+  const checkTrainedModel = async () => {
+    try {
+      const response = await fetch(`/api/workspaces/${workspaceId}/training-jobs`);
+      if (response.ok) {
+        const jobs = await response.json();
+        const completedJob = jobs.find((job: any) => job.status === 'completed');
+        setHasTrainedModel(!!completedJob);
+      }
+    } catch (error) {
+      console.error('Failed to check training status:', error);
+    }
+  };
 
   // Send initial greeting
   useEffect(() => {
@@ -92,8 +114,8 @@ export default function ChatPage() {
     setIsTyping(true);
 
     try {
-      // Call our Next.js API route that forwards to Rasa
-      const response = await fetch('/api/chat', {
+      // Call Python backend directly for trained model responses
+      const response = await fetch('http://localhost:8000/chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -113,7 +135,8 @@ export default function ChatPage() {
         throw new Error('Failed to get response from AI');
       }
 
-      const botResponses = await response.json();
+      const data = await response.json();
+      const botResponses = data.responses || [];
 
       // Process bot responses
       for (const botResponse of botResponses) {
@@ -123,6 +146,7 @@ export default function ChatPage() {
           text: botResponse.text || '',
           timestamp: new Date(),
           products: botResponse.products || [],
+          modelUsed: botResponse.metadata?.model_used || false,
         };
 
         setMessages(prev => [...prev, botMessage]);
@@ -140,12 +164,13 @@ export default function ChatPage() {
       const errorMessage: Message = {
         id: `bot_${Date.now()}`,
         sender: 'bot',
-        text: "I'm having trouble connecting right now. Please make sure the Rasa server is running. Start it with:\n\n`cd python-rasa-backend/rasa && rasa run --enable-api --cors \"*\"`",
+        text: "⚠️ I'm having trouble connecting to the AI backend.\n\nMake sure the Python backend is running:\n\n1. Open a terminal\n2. cd python-rasa-backend\n3. venv\\Scripts\\activate (Windows) or source venv/bin/activate (Mac/Linux)\n4. python app.py\n\nThe backend should start on http://localhost:8000",
         timestamp: new Date(),
+        modelUsed: false,
       };
       
       setMessages(prev => [...prev, errorMessage]);
-      toast.error('Failed to send message');
+      toast.error('Failed to connect to AI backend');
     } finally {
       setIsSending(false);
       setIsTyping(false);
@@ -204,12 +229,54 @@ export default function ChatPage() {
               </div>
             </div>
           </div>
-          <Badge variant="outline" className="gap-1">
-            <Sparkles className="h-3 w-3" />
-            Workspace #{workspaceId}
-          </Badge>
+          <div className="flex gap-2 items-center">
+            <Badge variant={hasTrainedModel ? "default" : "secondary"} className="gap-1">
+              {hasTrainedModel ? (
+                <>
+                  <CheckCircle2 className="h-3 w-3" />
+                  Trained Model Active
+                </>
+              ) : (
+                <>
+                  <AlertCircle className="h-3 w-3" />
+                  No Model Trained
+                </>
+              )}
+            </Badge>
+            <Badge variant="outline" className="gap-1">
+              <Sparkles className="h-3 w-3" />
+              Workspace #{workspaceId}
+            </Badge>
+          </div>
         </div>
       </header>
+
+      {/* Training Status Banner */}
+      {!hasTrainedModel && (
+        <div className="bg-amber-50 dark:bg-amber-900/20 border-b border-amber-200 dark:border-amber-800">
+          <div className="container mx-auto px-4 py-3">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="h-5 w-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <p className="text-sm font-medium text-amber-900 dark:text-amber-100">
+                  No Trained Model Yet - Using Fallback Responses
+                </p>
+                <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">
+                  To get NLU-powered responses with intent classification and entity extraction, please train a model first in your workspace.
+                </p>
+              </div>
+              <Button 
+                size="sm" 
+                variant="outline" 
+                className="border-amber-300 dark:border-amber-700"
+                onClick={() => router.push(`/workspace/${workspaceId}`)}
+              >
+                Train Model
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Chat Area */}
       <main className="container mx-auto px-4 py-6 h-[calc(100vh-140px)] flex flex-col">
@@ -236,6 +303,12 @@ export default function ChatPage() {
                       }`}
                     >
                       <p className="text-sm whitespace-pre-wrap">{message.text}</p>
+                      {message.sender === 'bot' && message.modelUsed && (
+                        <Badge variant="secondary" className="mt-2 text-xs">
+                          <CheckCircle2 className="h-3 w-3 mr-1" />
+                          Trained Model Used
+                        </Badge>
+                      )}
                     </div>
                   )}
                   
