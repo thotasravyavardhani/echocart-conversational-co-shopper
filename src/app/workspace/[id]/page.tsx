@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { 
   Brain, 
   Upload, 
@@ -39,6 +40,7 @@ interface Dataset {
   intents: string[];
   entities: string[];
   sampleCount: number;
+  validationReport?: { errors?: string[] };
   uploadedAt: string;
 }
 
@@ -71,6 +73,7 @@ export default function WorkspacePage() {
   const [datasets, setDatasets] = useState<Dataset[]>([]);
   const [trainingJobs, setTrainingJobs] = useState<TrainingJob[]>([]);
   const [currentTrainingJob, setCurrentTrainingJob] = useState<TrainingJob | null>(null);
+  const [selectedDatasetId, setSelectedDatasetId] = useState<number | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [isUploading, setIsUploading] = useState(false);
@@ -187,12 +190,28 @@ export default function WorkspacePage() {
     setIsUploading(true);
     
     try {
+      // Get user from localStorage
+      const storedUser = localStorage.getItem('user');
+      const accessToken = localStorage.getItem('accessToken');
+      
+      if (!storedUser || !accessToken) {
+        toast.error('Please login first');
+        router.push('/login');
+        return;
+      }
+
+      const user = JSON.parse(storedUser);
+
       const formData = new FormData();
       formData.append('file', file);
       formData.append('workspaceId', workspaceId);
+      formData.append('userId', user.id.toString());
 
       const response = await fetch('/api/datasets/upload', {
         method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`
+        },
         body: formData,
       });
 
@@ -217,15 +236,20 @@ export default function WorkspacePage() {
   };
 
   const startTraining = async () => {
-    const readyDataset = datasets.find(d => d.status === 'validated');
+    if (!selectedDatasetId) {
+      toast.error('Please select a dataset to train');
+      return;
+    }
+
+    const selectedDataset = datasets.find(d => d.id === selectedDatasetId);
     
-    if (!readyDataset) {
-      toast.error('Please upload and validate a dataset first');
+    if (!selectedDataset || selectedDataset.status !== 'validated') {
+      toast.error('Selected dataset must be validated first');
       return;
     }
 
     try {
-      const response = await fetch(`/api/datasets/${readyDataset.id}/train`, {
+      const response = await fetch(`/api/datasets/${selectedDatasetId}/train`, {
         method: 'POST',
       });
 
@@ -310,7 +334,7 @@ export default function WorkspacePage() {
   const getStatusBadge = (status: string) => {
     const statusConfig: Record<string, { variant: any; icon: any }> = {
       'validated': { variant: 'default', icon: CheckCircle2 },
-      'processing': { variant: 'secondary', icon: Loader2 },
+      'uploaded': { variant: 'secondary', icon: Loader2 },
       'error': { variant: 'destructive', icon: XCircle },
       'pending': { variant: 'secondary', icon: Loader2 },
     };
@@ -468,6 +492,16 @@ export default function WorkspacePage() {
                               <p className="font-medium">{dataset.entities?.length || 0}</p>
                             </div>
                           </div>
+                          {dataset.status === 'error' && dataset.validationReport?.errors && (
+                            <div className="mt-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md">
+                              <p className="text-sm font-medium text-red-800 dark:text-red-200 mb-1">Validation Errors:</p>
+                              <ul className="text-sm text-red-700 dark:text-red-300 list-disc list-inside">
+                                {dataset.validationReport.errors.map((error, idx) => (
+                                  <li key={idx}>{error}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
                         </div>
                       </div>
                     </CardContent>
@@ -483,7 +517,7 @@ export default function WorkspacePage() {
               <CardHeader>
                 <CardTitle>Train NLU Model</CardTitle>
                 <CardDescription>
-                  Train your model using Rasa NLU framework with uploaded datasets
+                  Select a validated dataset and train your model using Rasa NLU framework
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
@@ -500,17 +534,31 @@ export default function WorkspacePage() {
                   </div>
                 ) : (
                   <>
-                    <div className="grid gap-4 md:grid-cols-2">
-                      <div>
-                        <Label>Training Dataset</Label>
-                        <p className="text-sm font-medium mt-2">
-                          {datasets.find(d => d.status === 'validated')?.name}
-                        </p>
-                      </div>
-                      <div>
-                        <Label>Model Type</Label>
-                        <p className="text-sm font-medium mt-2">Rasa NLU</p>
-                      </div>
+                    <div>
+                      <Label className="text-base font-semibold mb-4 block">Select Dataset for Training</Label>
+                      <RadioGroup value={selectedDatasetId?.toString()} onValueChange={(val) => setSelectedDatasetId(parseInt(val))}>
+                        <div className="space-y-3">
+                          {datasets.filter(d => d.status === 'validated').map(dataset => (
+                            <div key={dataset.id} className="flex items-center space-x-3 border rounded-lg p-4 hover:bg-accent cursor-pointer">
+                              <RadioGroupItem value={dataset.id.toString()} id={`dataset-${dataset.id}`} />
+                              <Label htmlFor={`dataset-${dataset.id}`} className="flex-1 cursor-pointer">
+                                <div className="flex items-center justify-between">
+                                  <div>
+                                    <p className="font-medium">{dataset.name}</p>
+                                    <p className="text-sm text-muted-foreground">
+                                      {dataset.sampleCount} examples • {dataset.intents?.length || 0} intents • {dataset.entities?.length || 0} entities
+                                    </p>
+                                  </div>
+                                  <Badge variant="default">
+                                    <CheckCircle2 className="h-3 w-3 mr-1" />
+                                    Validated
+                                  </Badge>
+                                </div>
+                              </Label>
+                            </div>
+                          ))}
+                        </div>
+                      </RadioGroup>
                     </div>
 
                     {currentTrainingJob && (currentTrainingJob.status === 'queued' || currentTrainingJob.status === 'training') ? (
@@ -541,15 +589,15 @@ export default function WorkspacePage() {
                           <p className="text-sm"><strong>Model Path:</strong> {currentTrainingJob.modelPath}</p>
                           <p className="text-sm mt-2"><strong>Completed:</strong> {new Date(currentTrainingJob.finishedAt!).toLocaleString()}</p>
                         </div>
-                        <Button onClick={startTraining} variant="outline" className="w-full">
+                        <Button onClick={startTraining} variant="outline" className="w-full" disabled={!selectedDatasetId}>
                           <PlayCircle className="h-4 w-4 mr-2" />
                           Retrain Model
                         </Button>
                       </div>
                     ) : (
-                      <Button onClick={startTraining} className="w-full" size="lg">
+                      <Button onClick={startTraining} className="w-full" size="lg" disabled={!selectedDatasetId}>
                         <PlayCircle className="h-4 w-4 mr-2" />
-                        Start Training
+                        {selectedDatasetId ? 'Start Training' : 'Select a Dataset First'}
                       </Button>
                     )}
                   </>
