@@ -6,13 +6,7 @@ action_endpoint:
 # Tracker store (PostgreSQL for production)
 tracker_store:
   type: sql
-  dialect: "postgresql"
-  url: "postgres"
-  db: "rasa_tracker"
-  username: "rasa"
-  password: "rasa"
-  login_db: "postgres"
-
+  dialect: "sqlite"
 # Event broker (optional - for production event streaming)
 # event_broker:
 #   type: sql
