@@ -195,11 +195,23 @@ def validate_rasa_format(file_path: str) -> Dict[str, Any]:
 async def validate_dataset(request: DatasetValidationRequest):
     """Validate uploaded dataset format and extract metadata"""
     
-    # Convert relative path to absolute
-    file_path = os.path.join(os.getcwd(), "..", request.file_path.lstrip('/'))
+    # Convert relative URL path to absolute file system path
+    # Next.js saves files to: <project_root>/public/uploads/datasets/
+    # Python backend runs from: <project_root>/python-rasa-backend/
+    # So we need to go up one level and then into public/
+    file_path = request.file_path.lstrip('/')  # Remove leading slash
+    file_path = os.path.join(os.path.dirname(os.getcwd()), file_path)
     
     if not os.path.exists(file_path):
-        raise HTTPException(status_code=404, detail=f"File not found: {file_path}")
+        # Try alternative path (in case file is in public/)
+        alt_path = os.path.join(os.path.dirname(os.getcwd()), "public", request.file_path.lstrip('/'))
+        if os.path.exists(alt_path):
+            file_path = alt_path
+        else:
+            raise HTTPException(
+                status_code=404, 
+                detail=f"File not found. Tried: {file_path} and {alt_path}"
+            )
     
     # Validate based on format
     if request.format == 'csv':
