@@ -17,6 +17,9 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "EchoCart - AI Conversational Co-Shopper",
   description: "Emotion-aware AI shopping assistant powered by RASA NLU",
+  icons: {
+    icon: '/next.svg', 
+  }
 };
 
 export default function RootLayout({

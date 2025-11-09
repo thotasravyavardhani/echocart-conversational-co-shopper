@@ -27,7 +27,9 @@ import {
   AlertCircle,
   PlayCircle,
   Download,
-  RefreshCw
+  RefreshCw,
+  Sparkles,
+  List
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -57,6 +59,14 @@ interface TrainingJob {
   finishedAt: string | null;
 }
 
+interface ModelMetadata {
+  intents: string[];
+  entities: string[];
+  sample_count: number;
+  trained_at: string;
+  model_name: string;
+}
+
 interface Message {
   id: string;
   role: 'user' | 'bot';
@@ -74,6 +84,7 @@ export default function WorkspacePage() {
   const [datasets, setDatasets] = useState<Dataset[]>([]);
   const [trainingJobs, setTrainingJobs] = useState<TrainingJob[]>([]);
   const [currentTrainingJob, setCurrentTrainingJob] = useState<TrainingJob | null>(null);
+  const [modelMetadata, setModelMetadata] = useState<ModelMetadata | null>(null);
   const [selectedDatasetId, setSelectedDatasetId] = useState<number | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState('');
@@ -99,6 +110,9 @@ export default function WorkspacePage() {
       }, 2000);
       setPollingInterval(interval);
       return () => clearInterval(interval);
+    } else if (currentTrainingJob && currentTrainingJob.status === 'completed') {
+      // Fetch model metadata when training completes
+      fetchModelMetadata();
     }
   }, [currentTrainingJob]);
 
@@ -163,6 +177,7 @@ export default function WorkspacePage() {
           if (data.status === 'completed') {
             toast.success('Model trained successfully!');
             fetchDatasets(); // Refresh datasets
+            fetchModelMetadata(); // Fetch model metadata
           } else {
             toast.error('Training failed');
           }
@@ -170,6 +185,18 @@ export default function WorkspacePage() {
       }
     } catch (error) {
       console.error('Failed to fetch training job status:', error);
+    }
+  };
+
+  const fetchModelMetadata = async () => {
+    try {
+      const response = await fetch('http://localhost:8000/model/metadata');
+      if (response.ok) {
+        const data = await response.json();
+        setModelMetadata(data);
+      }
+    } catch (error) {
+      console.log('Model metadata not available yet');
     }
   };
 
@@ -331,12 +358,6 @@ export default function WorkspacePage() {
     }
   };
 
-  const formatFileSize = (bytes: number) => {
-    if (bytes < 1024) return bytes + ' B';
-    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(2) + ' KB';
-    return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
-  };
-
   const getStatusBadge = (status: string) => {
     const statusConfig: Record<string, { variant: any; icon: any }> = {
       'validated': { variant: 'default', icon: CheckCircle2 },
@@ -389,6 +410,12 @@ export default function WorkspacePage() {
               </div>
             </div>
             <div className="flex gap-2">
+              <Button asChild variant="outline" size="sm">
+                <Link href={`/workspace/${workspaceId}/annotate`}>
+                  <Tag className="h-4 w-4 mr-2" />
+                  Annotate
+                </Link>
+              </Button>
               <Button variant="outline" size="sm">
                 <Settings className="h-4 w-4 mr-2" />
                 Settings
@@ -602,6 +629,77 @@ export default function WorkspacePage() {
                           <CheckCircle2 className="h-5 w-5" />
                           <span className="font-medium">Model trained successfully!</span>
                         </div>
+                        
+                        {/* Model Metadata Card */}
+                        {modelMetadata && (
+                          <Card className="border-green-200 dark:border-green-800 bg-green-50/50 dark:bg-green-900/10">
+                            <CardHeader>
+                              <CardTitle className="flex items-center gap-2 text-lg">
+                                <Sparkles className="h-5 w-5 text-green-600" />
+                                Trained Model Metadata
+                              </CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                <div>
+                                  <p className="text-sm text-muted-foreground">Model Name</p>
+                                  <p className="font-medium text-sm">{modelMetadata.model_name}</p>
+                                </div>
+                                <div>
+                                  <p className="text-sm text-muted-foreground">Training Examples</p>
+                                  <p className="font-medium text-sm">{modelMetadata.sample_count}</p>
+                                </div>
+                                <div>
+                                  <p className="text-sm text-muted-foreground">Intents</p>
+                                  <p className="font-medium text-sm">{modelMetadata.intents.length}</p>
+                                </div>
+                                <div>
+                                  <p className="text-sm text-muted-foreground">Entity Types</p>
+                                  <p className="font-medium text-sm">{modelMetadata.entities.length}</p>
+                                </div>
+                              </div>
+                              
+                              {/* Intents List */}
+                              <div>
+                                <p className="text-sm font-semibold mb-2 flex items-center gap-2">
+                                  <Brain className="h-4 w-4" />
+                                  Learned Intents ({modelMetadata.intents.length}):
+                                </p>
+                                <div className="flex flex-wrap gap-2">
+                                  {modelMetadata.intents.map((intent, idx) => (
+                                    <Badge key={idx} variant="secondary">
+                                      {intent}
+                                    </Badge>
+                                  ))}
+                                </div>
+                              </div>
+                              
+                              {/* Entities List */}
+                              {modelMetadata.entities.length > 0 && (
+                                <div>
+                                  <p className="text-sm font-semibold mb-2 flex items-center gap-2">
+                                    <Tag className="h-4 w-4" />
+                                    Entity Types ({modelMetadata.entities.length}):
+                                  </p>
+                                  <div className="flex flex-wrap gap-2">
+                                    {modelMetadata.entities.map((entity, idx) => (
+                                      <Badge key={idx} variant="outline">
+                                        {entity}
+                                      </Badge>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                              
+                              <div className="pt-2 border-t">
+                                <p className="text-xs text-muted-foreground">
+                                  Trained: {new Date(modelMetadata.trained_at).toLocaleString()}
+                                </p>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        )}
+                        
                         <div className="bg-muted p-4 rounded-md">
                           <p className="text-sm"><strong>Model Path:</strong> {currentTrainingJob.modelPath}</p>
                           <p className="text-sm mt-2"><strong>Completed:</strong> {new Date(currentTrainingJob.finishedAt!).toLocaleString()}</p>

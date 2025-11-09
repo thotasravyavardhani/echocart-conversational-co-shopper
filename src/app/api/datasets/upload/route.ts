@@ -93,7 +93,18 @@ export async function POST(request: NextRequest) {
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       })
-      .returning();
+      .returning({ // FIX: Also adjust the returned fields to be safe
+        id: datasets.id,
+        workspaceId: datasets.workspaceId,
+        name: datasets.name,
+        filename: datasets.filename,
+        fileUrl: datasets.fileUrl,
+        format: datasets.format,
+        status: datasets.status,
+        createdBy: datasets.createdBy,
+        createdAt: datasets.createdAt,
+        updatedAt: datasets.updatedAt,
+      });
 
     // Trigger validation in background
     fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/datasets/${newDataset[0].id}/validate`, {
