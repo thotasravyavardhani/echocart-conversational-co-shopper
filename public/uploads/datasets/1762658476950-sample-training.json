@@ -1,0 +1,87 @@
+[
+  {
+    "text": "I want to buy shoes",
+    "intent": "product_search",
+    "entities": []
+  },
+  {
+    "text": "Show me eco-friendly products",
+    "intent": "sustainability",
+    "entities": []
+  },
+  {
+    "text": "I'm feeling tired",
+    "intent": "mood_tired",
+    "entities": []
+  },
+  {
+    "text": "Track my order",
+    "intent": "track_order",
+    "entities": []
+  },
+  {
+    "text": "I'm stressed out",
+    "intent": "mood_stressed",
+    "entities": []
+  },
+  {
+    "text": "Show me clothing",
+    "intent": "product_search",
+    "entities": []
+  },
+  {
+    "text": "What's the most sustainable option",
+    "intent": "sustainability",
+    "entities": []
+  },
+  {
+    "text": "I feel excited",
+    "intent": "mood_excited",
+    "entities": []
+  },
+  {
+    "text": "Where is my package",
+    "intent": "track_order",
+    "entities": []
+  },
+  {
+    "text": "I'm feeling lazy today",
+    "intent": "mood_lazy",
+    "entities": []
+  },
+  {
+    "text": "I want running shoes",
+    "intent": "product_search",
+    "entities": [
+      {
+        "entity": "product",
+        "value": "running shoes"
+      }
+    ]
+  },
+  {
+    "text": "Show products under 100 dollars",
+    "intent": "price_filter",
+    "entities": [
+      {
+        "entity": "price",
+        "value": "100"
+      }
+    ]
+  },
+  {
+    "text": "I need help",
+    "intent": "help",
+    "entities": []
+  },
+  {
+    "text": "Hello",
+    "intent": "greet",
+    "entities": []
+  },
+  {
+    "text": "Looking for adventurous gear",
+    "intent": "mood_adventurous",
+    "entities": []
+  }
+]
