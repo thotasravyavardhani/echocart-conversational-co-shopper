@@ -35,7 +35,7 @@ export const workspaces = sqliteTable('workspaces', {
 // Workspace members for collaboration
 export const workspaceMembers = sqliteTable('workspace_members', {
   id: integer('id').primaryKey({ autoIncrement: true }),
-  workspaceId: integer('workspace_id').notNull().references(() => workspaces.id),
+  workspaceId: integer('workspace_id').notNull().references(() => workspaces.id, {onDelete: 'cascade'}),
   userId: integer('user_id').notNull().references(() => users.id),
   role: text('role').notNull(),
   joinedAt: text('joined_at').notNull(),
@@ -44,7 +44,7 @@ export const workspaceMembers = sqliteTable('workspace_members', {
 // Datasets for training AI models
 export const datasets = sqliteTable('datasets', {
   id: integer('id').primaryKey({ autoIncrement: true }),
-  workspaceId: integer('workspace_id').notNull().references(() => workspaces.id),
+  workspaceId: integer('workspace_id').notNull().references(() => workspaces.id,{onDelete: 'cascade'}),
   name: text('name').notNull(),
   filename: text('filename').notNull(),
   fileUrl: text('file_url').notNull(),
@@ -62,8 +62,8 @@ export const datasets = sqliteTable('datasets', {
 // Training jobs for AI model training
 export const trainingJobs = sqliteTable('training_jobs', {
   id: integer('id').primaryKey({ autoIncrement: true }),
-  workspaceId: integer('workspace_id').notNull().references(() => workspaces.id),
-  datasetId: integer('dataset_id').notNull().references(() => datasets.id),
+  workspaceId: integer('workspace_id').notNull().references(() => workspaces.id, {onDelete: 'cascade'}),
+  datasetId: integer('dataset_id').notNull().references(() => datasets.id, {onDelete: 'cascade'}),
   status: text('status').notNull(),
   progress: integer('progress'),
   log: text('log'),
@@ -76,7 +76,7 @@ export const trainingJobs = sqliteTable('training_jobs', {
 export const conversationHistory = sqliteTable('conversation_history', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   userId: integer('user_id').notNull().references(() => users.id),
-  workspaceId: integer('workspace_id').notNull().references(() => workspaces.id),
+  workspaceId: integer('workspace_id').notNull().references(() => workspaces.id, {onDelete: 'cascade'}),
   sessionId: text('session_id').notNull(),
   message: text('message').notNull(),
   intent: text('intent'),

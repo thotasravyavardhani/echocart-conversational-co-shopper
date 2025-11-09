@@ -169,14 +169,11 @@ export default function WorkspacePage() {
         setCurrentTrainingJob(data);
         
         if (data.status === 'completed' || data.status === 'failed') {
-          if (pollingInterval) {
-            clearInterval(pollingInterval);
-            setPollingInterval(null);
-          }
           
           if (data.status === 'completed') {
             toast.success('Model trained successfully!');
             fetchDatasets(); // Refresh datasets
+            await reloadModel();
             fetchModelMetadata(); // Fetch model metadata
           } else {
             toast.error('Training failed');
@@ -199,6 +196,24 @@ export default function WorkspacePage() {
       console.log('Model metadata not available yet');
     }
   };
+
+  const reloadModel = async () => {
+   try {
+      console.log('Initiating Rasa model reload via FastAPI...');
+      // Call a new endpoint on your FastAPI server (on port 8000)
+      const response = await fetch('http://localhost:8000/reload-rasa-model', {
+        method: 'POST',
+      });
+      if (response.ok) {
+        toast.success('Model reload initiated. New model should be live shortly.');
+      } else {
+        throw new Error('Failed to communicate model reload request to backend.');
+      }
+    } catch (error) {
+      console.error('Failed to trigger Rasa model reload:', error);
+      toast.error('Failed to reload trained model for chat. Check backend logs.');
+    }
+  };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

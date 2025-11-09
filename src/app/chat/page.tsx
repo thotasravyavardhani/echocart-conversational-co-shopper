@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { Suspense } from "react";
 import { useAuth } from '@/lib/authContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -34,7 +35,7 @@ interface Product {
   relevance_score?: number;
 }
 
-export default function ChatPage() {
+export default function ChatContent() {
   const { user, accessToken, isLoading: authLoading } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -47,7 +48,13 @@ export default function ChatPage() {
   const [hasTrainedModel, setHasTrainedModel] = useState(false);
   const [sessionId] = useState(() => `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
-
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
+      </div>
+    );
+  }
   useEffect(() => {
     if (!authLoading && !user) {
       router.push('/login');
@@ -420,5 +427,17 @@ export default function ChatPage() {
         </div>
       </main>
     </div>
+  );
+}
+export default function ChatPage() {
+  return (
+    // Wrap the inner component with a Suspense boundary
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
+      </div>
+    }>
+      <ChatContent />
+    </Suspense>
   );
 }

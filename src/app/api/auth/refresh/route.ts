@@ -2,6 +2,24 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyRefreshToken, getUserById, createAccessToken } from '@/lib/auth';
 
 export async function POST(request: NextRequest) {
+  let body;
+  try {
+    // 💡 FIX: Safely parse the JSON body
+    body = await request.json();
+  } catch (e) {
+    // If parsing fails (e.g., empty body), set body to an empty object
+    body = {}; 
+  }
+  
+  // Use safe destructuring
+  const { refreshToken } = body;
+
+  if (!refreshToken) {
+    return NextResponse.json(
+      { error: 'Missing refreshToken' },
+      { status: 400 }
+    );
+  }
   try {
     const { refreshToken } = await request.json();
 
