@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Suspense } from "react";
 import { useAuth } from '@/lib/authContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Avatar } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Loader2, Send, ArrowLeft, ShoppingCart, Heart, Sparkles, Bot, User, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Loader2, Send, ArrowLeft, Bot, User, CheckCircle2, AlertCircle, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface Message {
@@ -18,24 +17,13 @@ interface Message {
   sender: 'user' | 'bot';
   text: string;
   timestamp: Date;
-  products?: Product[];
-  sentiment?: string;
-  mood?: string;
   modelUsed?: boolean;
+  intent?: string;
+  confidence?: number;
+  entities?: any[];
 }
 
-interface Product {
-  id: string;
-  name: string;
-  description: string;
-  price: number;
-  rating?: number;
-  image_url?: string;
-  sustainability_score?: number;
-  relevance_score?: number;
-}
-
-export default function ChatContent() {
+export default function ChatPage() {
   const { user, accessToken, isLoading: authLoading } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -46,15 +34,10 @@ export default function ChatContent() {
   const [isTyping, setIsTyping] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [hasTrainedModel, setHasTrainedModel] = useState(false);
+  const [modelMetadata, setModelMetadata] = useState<any>(null);
   const [sessionId] = useState(() => `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
-  if (authLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
-      </div>
-    );
-  }
+
   useEffect(() => {
     if (!authLoading && !user) {
       router.push('/login');
@@ -82,18 +65,20 @@ export default function ChatContent() {
         const jobs = await response.json();
         const completedJob = jobs.find((job: any) => job.status === 'completed');
         setHasTrainedModel(!!completedJob);
+        
+        // Fetch model metadata
+        if (completedJob) {
+          const metaResponse = await fetch('http://localhost:8000/model/metadata');
+          if (metaResponse.ok) {
+            const meta = await metaResponse.json();
+            setModelMetadata(meta);
+          }
+        }
       }
     } catch (error) {
       console.error('Failed to check training status:', error);
     }
   };
-
-  // Send initial greeting
-  useEffect(() => {
-    if (user && messages.length === 0) {
-      sendMessage('hello', true);
-    }
-  }, [user]);
 
   // Auto-scroll to bottom
   useEffect(() => {
@@ -102,21 +87,18 @@ export default function ChatContent() {
     }
   }, [messages]);
 
-  const sendMessage = async (text: string, isInitial = false) => {
-    if (!text.trim() && !isInitial) return;
+  const sendMessage = async (text: string) => {
+    if (!text.trim()) return;
 
     const userMessage: Message = {
       id: `user_${Date.now()}`,
       sender: 'user',
-      text: isInitial ? '' : text,
+      text,
       timestamp: new Date(),
     };
 
-    if (!isInitial) {
-      setMessages(prev => [...prev, userMessage]);
-      setInputMessage('');
-    }
-    
+    setMessages(prev => [...prev, userMessage]);
+    setInputMessage('');
     setIsSending(true);
     setIsTyping(true);
 
@@ -129,7 +111,7 @@ export default function ChatContent() {
         },
         body: JSON.stringify({
           sender: `user_${user?.id}_${sessionId}`,
-          message: isInitial ? 'hello' : text,
+          message: text,
           metadata: {
             user_id: user?.id,
             workspace_id: workspaceId,
@@ -152,16 +134,16 @@ export default function ChatContent() {
           sender: 'bot',
           text: botResponse.text || '',
           timestamp: new Date(),
-          products: botResponse.products || [],
           modelUsed: botResponse.metadata?.model_used || false,
+          intent: botResponse.metadata?.intent,
+          confidence: botResponse.metadata?.confidence,
+          entities: botResponse.metadata?.entities || [],
         };
 
         setMessages(prev => [...prev, botMessage]);
         
         // Save conversation to database
-        if (!isInitial) {
-          await saveConversation(text, botMessage.text);
-        }
+        await saveConversation(text, botMessage.text);
       }
 
     } catch (error) {
@@ -171,7 +153,7 @@ export default function ChatContent() {
       const errorMessage: Message = {
         id: `bot_${Date.now()}`,
         sender: 'bot',
-        text: "⚠️ I'm having trouble connecting to the AI backend.\n\nMake sure the Python backend is running:\n\n1. Open a terminal\n2. cd python-rasa-backend\n3. venv\\Scripts\\activate (Windows) or source venv/bin/activate (Mac/Linux)\n4. python app.py\n\nThe backend should start on http://localhost:8000",
+        text: "⚠️ Failed to connect to the Python backend.\n\nMake sure the backend is running:\n\n1. Open a terminal\n2. cd python-rasa-backend\n3. venv\\Scripts\\activate (Windows) or source venv/bin/activate (Mac/Linux)\n4. python app.py\n\nThe backend should start on http://localhost:8000",
         timestamp: new Date(),
         modelUsed: false,
       };
@@ -224,15 +206,15 @@ export default function ChatContent() {
       <header className="border-b bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm sticky top-0 z-10">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Button variant="ghost" size="sm" onClick={() => router.push('/dashboard')}>
+            <Button variant="ghost" size="sm" onClick={() => router.push(`/workspace/${workspaceId}`)}>
               <ArrowLeft className="h-4 w-4 mr-2" />
-              Back
+              Back to Workspace
             </Button>
             <div className="flex items-center gap-2">
               <Bot className="h-6 w-6 text-indigo-600" />
               <div>
-                <h1 className="text-lg font-bold">EchoCart AI</h1>
-                <p className="text-xs text-muted-foreground">Your conversational shopping assistant</p>
+                <h1 className="text-lg font-bold">NLU Model Testing</h1>
+                <p className="text-xs text-muted-foreground">Test your trained model</p>
               </div>
             </div>
           </div>
@@ -241,19 +223,21 @@ export default function ChatContent() {
               {hasTrainedModel ? (
                 <>
                   <CheckCircle2 className="h-3 w-3" />
-                  Trained Model Active
+                  Model Active
                 </>
               ) : (
                 <>
                   <AlertCircle className="h-3 w-3" />
-                  No Model Trained
+                  No Model
                 </>
               )}
             </Badge>
-            <Badge variant="outline" className="gap-1">
-              <Sparkles className="h-3 w-3" />
-              Workspace #{workspaceId}
-            </Badge>
+            {modelMetadata && (
+              <Badge variant="outline" className="gap-1">
+                <Sparkles className="h-3 w-3" />
+                {modelMetadata.intents?.length || 0} intents
+              </Badge>
+            )}
           </div>
         </div>
       </header>
@@ -266,10 +250,10 @@ export default function ChatContent() {
               <AlertCircle className="h-5 w-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
               <div className="flex-1">
                 <p className="text-sm font-medium text-amber-900 dark:text-amber-100">
-                  No Trained Model Yet - Using Fallback Responses
+                  No Trained Model - Train a model first to get NLU responses
                 </p>
                 <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">
-                  To get NLU-powered responses with intent classification and entity extraction, please train a model first in your workspace.
+                  Go to your workspace, upload a dataset, and train a model to test NLU capabilities here.
                 </p>
               </div>
               <Button 
@@ -278,7 +262,7 @@ export default function ChatContent() {
                 className="border-amber-300 dark:border-amber-700"
                 onClick={() => router.push(`/workspace/${workspaceId}`)}
               >
-                Train Model
+                Go to Workspace
               </Button>
             </div>
           </div>
@@ -289,6 +273,21 @@ export default function ChatContent() {
       <main className="container mx-auto px-4 py-6 h-[calc(100vh-140px)] flex flex-col">
         <ScrollArea className="flex-1 pr-4" ref={scrollAreaRef}>
           <div className="space-y-4 pb-4">
+            {messages.length === 0 && (
+              <div className="text-center py-12">
+                <Bot className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
+                <p className="text-muted-foreground mb-2">
+                  {hasTrainedModel ? 'Start chatting to test your NLU model' : 'Train a model first to start testing'}
+                </p>
+                {modelMetadata && (
+                  <div className="mt-4 text-sm text-muted-foreground">
+                    <p className="font-medium">Model Ready:</p>
+                    <p>{modelMetadata.intents?.length || 0} intents • {modelMetadata.entities?.length || 0} entities • {modelMetadata.sample_count || 0} examples</p>
+                  </div>
+                )}
+              </div>
+            )}
+            
             {messages.map((message) => (
               <div
                 key={message.id}
@@ -300,77 +299,26 @@ export default function ChatContent() {
                   </Avatar>
                 )}
                 
-                <div className={`flex flex-col ${message.sender === 'user' ? 'items-end' : 'items-start'} max-w-[70%]`}>
-                  {message.text && (
-                    <div
-                      className={`rounded-2xl px-4 py-2 ${
-                        message.sender === 'user'
-                          ? 'bg-indigo-600 text-white'
-                          : 'bg-white dark:bg-gray-800 border'
-                      }`}
-                    >
-                      <p className="text-sm whitespace-pre-wrap">{message.text}</p>
-                      {message.sender === 'bot' && message.modelUsed && (
-                        <Badge variant="secondary" className="mt-2 text-xs">
-                          <CheckCircle2 className="h-3 w-3 mr-1" />
-                          Trained Model Used
+                <div className={`flex flex-col ${message.sender === 'user' ? 'items-end' : 'items-start'} max-w-[80%]`}>
+                  <div
+                    className={`rounded-2xl px-4 py-3 ${
+                      message.sender === 'user'
+                        ? 'bg-indigo-600 text-white'
+                        : 'bg-white dark:bg-gray-800 border'
+                    }`}
+                  >
+                    <p className="text-sm whitespace-pre-wrap">{message.text}</p>
+                    
+                    {/* Show NLU metadata for bot messages */}
+                    {message.sender === 'bot' && message.modelUsed && message.intent && (
+                      <div className="mt-3 pt-3 border-t border-indigo-100 dark:border-gray-700 space-y-1">
+                        <Badge variant="secondary" className="text-xs">
+                          <Sparkles className="h-3 w-3 mr-1" />
+                          NLU Model Used
                         </Badge>
-                      )}
-                    </div>
-                  )}
-                  
-                  {/* Product Cards */}
-                  {message.products && message.products.length > 0 && (
-                    <div className="mt-2 space-y-2 w-full">
-                      {message.products.map((product) => (
-                        <Card key={product.id} className="hover:shadow-md transition-shadow">
-                          <CardHeader className="pb-3">
-                            <div className="flex items-start justify-between">
-                              <div className="flex-1">
-                                <CardTitle className="text-base">{product.name}</CardTitle>
-                                <CardDescription className="text-xs mt-1">
-                                  {product.description}
-                                </CardDescription>
-                              </div>
-                              <div className="text-right ml-4">
-                                <p className="text-lg font-bold text-indigo-600">
-                                  ${product.price}
-                                </p>
-                                {product.rating && (
-                                  <p className="text-xs text-muted-foreground">
-                                    ⭐ {product.rating}
-                                  </p>
-                                )}
-                              </div>
-                            </div>
-                          </CardHeader>
-                          <CardContent className="pt-0">
-                            <div className="flex items-center gap-2">
-                              {product.sustainability_score && product.sustainability_score > 0.7 && (
-                                <Badge variant="secondary" className="text-xs gap-1">
-                                  🌱 Eco {(product.sustainability_score * 100).toFixed(0)}%
-                                </Badge>
-                              )}
-                              {product.relevance_score && (
-                                <Badge variant="outline" className="text-xs">
-                                  {(product.relevance_score * 100).toFixed(0)}% match
-                                </Badge>
-                              )}
-                            </div>
-                            <div className="flex gap-2 mt-3">
-                              <Button size="sm" className="flex-1">
-                                <ShoppingCart className="h-3 w-3 mr-1" />
-                                Add to Cart
-                              </Button>
-                              <Button size="sm" variant="outline">
-                                <Heart className="h-3 w-3" />
-                              </Button>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      ))}
-                    </div>
-                  )}
+                      </div>
+                    )}
+                  </div>
                   
                   <span className="text-xs text-muted-foreground mt-1">
                     {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -409,7 +357,7 @@ export default function ChatContent() {
             <Input
               value={inputMessage}
               onChange={(e) => setInputMessage(e.target.value)}
-              placeholder="Ask me anything... (e.g., 'I'm tired, show me cozy clothes' or 'Track my order')"
+              placeholder={hasTrainedModel ? "Test your NLU model..." : "Train a model first..."}
               disabled={isSending}
               className="flex-1"
             />
@@ -422,22 +370,13 @@ export default function ChatContent() {
             </Button>
           </form>
           <p className="text-xs text-muted-foreground mt-2 text-center">
-            💡 Try: "I'm tired, show me cozy clothes" or "eco-friendly products under $100"
+            {hasTrainedModel 
+              ? '💡 Try different messages to see how the NLU model classifies intents and extracts entities'
+              : '⚠️ No trained model available - train a model in your workspace first'
+            }
           </p>
         </div>
       </main>
     </div>
-  );
-}
-export default function ChatPage() {
-  return (
-    // Wrap the inner component with a Suspense boundary
-    <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
-      </div>
-    }>
-      <ChatContent />
-    </Suspense>
   );
 }

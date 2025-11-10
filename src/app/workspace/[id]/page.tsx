@@ -29,7 +29,9 @@ import {
   Download,
   RefreshCw,
   Sparkles,
-  List
+  List,
+  Bot,
+  User
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -169,11 +171,13 @@ export default function WorkspacePage() {
         setCurrentTrainingJob(data);
         
         if (data.status === 'completed' || data.status === 'failed') {
+          if (pollingInterval) {
+            clearInterval(pollingInterval);
+            setPollingInterval(null);
+          }
           
           if (data.status === 'completed') {
             toast.success('Model trained successfully!');
-            fetchDatasets(); // Refresh datasets
-            await reloadModel();
             fetchModelMetadata(); // Fetch model metadata
           } else {
             toast.error('Training failed');
@@ -196,24 +200,6 @@ export default function WorkspacePage() {
       console.log('Model metadata not available yet');
     }
   };
-
-  const reloadModel = async () => {
-   try {
-      console.log('Initiating Rasa model reload via FastAPI...');
-      // Call a new endpoint on your FastAPI server (on port 8000)
-      const response = await fetch('http://localhost:8000/reload-rasa-model', {
-        method: 'POST',
-      });
-      if (response.ok) {
-        toast.success('Model reload initiated. New model should be live shortly.');
-      } else {
-        throw new Error('Failed to communicate model reload request to backend.');
-      }
-    } catch (error) {
-      console.error('Failed to trigger Rasa model reload:', error);
-      toast.error('Failed to reload trained model for chat. Check backend logs.');
-    }
-  };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -338,9 +324,12 @@ export default function WorkspacePage() {
     setIsSending(true);
 
     try {
-      const response = await fetch('/api/chat', {
+      // Call Python backend directly for trained model responses
+      const response = await fetch('http://localhost:8000/chat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({
           message: inputMessage,
           sender: `workspace_${workspaceId}_user`,
@@ -352,8 +341,9 @@ export default function WorkspacePage() {
         throw new Error('Failed to get response');
       }
 
-      const botResponses = await response.json();
-      
+      const data = await response.json();
+      const botResponses = data.responses || [];
+
       for (const botResponse of botResponses) {
         const botMessage: Message = {
           id: (Date.now() + 1).toString(),
@@ -367,9 +357,36 @@ export default function WorkspacePage() {
 
     } catch (error) {
       console.error('Chat error:', error);
+      const errorMessage: Message = {
+        id: `bot_${Date.now()}`,
+        role: 'bot',
+        text: "⚠️ Failed to connect to the Python backend.\n\nMake sure the backend is running:\n1. cd python-rasa-backend\n2. venv\\Scripts\\activate\n3. python app.py",
+        timestamp: new Date().toISOString()
+      };
+      setMessages(prev => [...prev, errorMessage]);
       toast.error('Failed to send message');
     } finally {
       setIsSending(false);
+    }
+  };
+
+  const exportModel = async () => {
+    if (!currentTrainingJob?.modelPath) {
+      toast.error('No trained model available to export');
+      return;
+    }
+
+    try {
+      // Download the model file
+      const modelFileName = currentTrainingJob.modelPath.split('/').pop();
+      const link = document.createElement('a');
+      link.href = currentTrainingJob.modelPath;
+      link.download = modelFileName || 'model.tar.gz';
+      link.click();
+      toast.success('Model export started');
+    } catch (error) {
+      console.error('Export error:', error);
+      toast.error('Failed to export model');
     }
   };
 
@@ -436,7 +453,7 @@ export default function WorkspacePage() {
                 Settings
               </Button>
               {currentTrainingJob?.modelPath && (
-                <Button variant="outline" size="sm">
+                <Button variant="outline" size="sm" onClick={exportModel}>
                   <Download className="h-4 w-4 mr-2" />
                   Export Model
                 </Button>
@@ -580,7 +597,128 @@ export default function WorkspacePage() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                {datasets.filter(d => d.status === 'validated').length === 0 ? (
+                {currentTrainingJob && currentTrainingJob.status === 'completed' ? (
+                  <>
+                    {/* Show Model Metadata When Trained */}
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-2 text-green-600">
+                        <CheckCircle2 className="h-5 w-5" />
+                        <span className="font-medium">Model trained successfully!</span>
+                      </div>
+                      
+                      {/* Model Metadata Card */}
+                      {modelMetadata && (
+                        <Card className="border-green-200 dark:border-green-800 bg-green-50/50 dark:bg-green-900/10">
+                          <CardHeader>
+                            <CardTitle className="flex items-center gap-2 text-lg">
+                              <Sparkles className="h-5 w-5 text-green-600" />
+                              Trained Model Metadata
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent className="space-y-4">
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                              <div>
+                                <p className="text-sm text-muted-foreground">Model Name</p>
+                                <p className="font-medium text-sm">{modelMetadata.model_name}</p>
+                              </div>
+                              <div>
+                                <p className="text-sm text-muted-foreground">Training Examples</p>
+                                <p className="font-medium text-sm">{modelMetadata.sample_count}</p>
+                              </div>
+                              <div>
+                                <p className="text-sm text-muted-foreground">Intents</p>
+                                <p className="font-medium text-sm">{modelMetadata.intents.length}</p>
+                              </div>
+                              <div>
+                                <p className="text-sm text-muted-foreground">Entity Types</p>
+                                <p className="font-medium text-sm">{modelMetadata.entities.length}</p>
+                              </div>
+                            </div>
+                            
+                            {/* Intents List */}
+                            <div>
+                              <p className="text-sm font-semibold mb-2 flex items-center gap-2">
+                                <Brain className="h-4 w-4" />
+                                Learned Intents ({modelMetadata.intents.length}):
+                              </p>
+                              <div className="flex flex-wrap gap-2">
+                                {modelMetadata.intents.map((intent, idx) => (
+                                  <Badge key={idx} variant="secondary">
+                                    {intent}
+                                  </Badge>
+                                ))}
+                              </div>
+                            </div>
+                            
+                            {/* Entities List */}
+                            {modelMetadata.entities.length > 0 && (
+                              <div>
+                                <p className="text-sm font-semibold mb-2 flex items-center gap-2">
+                                  <Tag className="h-4 w-4" />
+                                  Entity Types ({modelMetadata.entities.length}):
+                                </p>
+                                <div className="flex flex-wrap gap-2">
+                                  {modelMetadata.entities.map((entity, idx) => (
+                                    <Badge key={idx} variant="outline">
+                                      {entity}
+                                    </Badge>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                            
+                            <div className="pt-2 border-t">
+                              <p className="text-xs text-muted-foreground">
+                                Trained: {new Date(modelMetadata.trained_at).toLocaleString()}
+                              </p>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )}
+                      
+                      <div className="bg-muted p-4 rounded-md">
+                        <p className="text-sm"><strong>Model Path:</strong> {currentTrainingJob.modelPath}</p>
+                        <p className="text-sm mt-2"><strong>Completed:</strong> {new Date(currentTrainingJob.finishedAt!).toLocaleString()}</p>
+                      </div>
+                      
+                      {/* Retrain Section */}
+                      {datasets.filter(d => d.status === 'validated').length > 0 && (
+                        <>
+                          <div className="pt-4 border-t">
+                            <Label className="text-base font-semibold mb-4 block">Retrain with Different Dataset</Label>
+                            <RadioGroup value={selectedDatasetId?.toString()} onValueChange={(val) => setSelectedDatasetId(parseInt(val))}>
+                              <div className="space-y-3">
+                                {datasets.filter(d => d.status === 'validated').map(dataset => (
+                                  <div key={dataset.id} className="flex items-center space-x-3 border rounded-lg p-4 hover:bg-accent cursor-pointer">
+                                    <RadioGroupItem value={dataset.id.toString()} id={`dataset-${dataset.id}`} />
+                                    <Label htmlFor={`dataset-${dataset.id}`} className="flex-1 cursor-pointer">
+                                      <div className="flex items-center justify-between">
+                                        <div>
+                                          <p className="font-medium">{dataset.name}</p>
+                                          <p className="text-sm text-muted-foreground">
+                                            {dataset.sampleCount} examples • {dataset.intents?.length || 0} intents • {dataset.entities?.length || 0} entities
+                                          </p>
+                                        </div>
+                                        <Badge variant="default">
+                                          <CheckCircle2 className="h-3 w-3 mr-1" />
+                                          Validated
+                                        </Badge>
+                                      </div>
+                                    </Label>
+                                  </div>
+                                ))}
+                              </div>
+                            </RadioGroup>
+                          </div>
+                          <Button onClick={startTraining} variant="outline" className="w-full" disabled={!selectedDatasetId}>
+                            <PlayCircle className="h-4 w-4 mr-2" />
+                            Retrain Model
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  </>
+                ) : datasets.filter(d => d.status === 'validated').length === 0 ? (
                   <div className="text-center py-12">
                     <AlertCircle className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
                     <p className="text-muted-foreground mb-4">
@@ -638,92 +776,6 @@ export default function WorkspacePage() {
                           </div>
                         )}
                       </div>
-                    ) : currentTrainingJob && currentTrainingJob.status === 'completed' ? (
-                      <div className="space-y-4">
-                        <div className="flex items-center gap-2 text-green-600">
-                          <CheckCircle2 className="h-5 w-5" />
-                          <span className="font-medium">Model trained successfully!</span>
-                        </div>
-                        
-                        {/* Model Metadata Card */}
-                        {modelMetadata && (
-                          <Card className="border-green-200 dark:border-green-800 bg-green-50/50 dark:bg-green-900/10">
-                            <CardHeader>
-                              <CardTitle className="flex items-center gap-2 text-lg">
-                                <Sparkles className="h-5 w-5 text-green-600" />
-                                Trained Model Metadata
-                              </CardTitle>
-                            </CardHeader>
-                            <CardContent className="space-y-4">
-                              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                <div>
-                                  <p className="text-sm text-muted-foreground">Model Name</p>
-                                  <p className="font-medium text-sm">{modelMetadata.model_name}</p>
-                                </div>
-                                <div>
-                                  <p className="text-sm text-muted-foreground">Training Examples</p>
-                                  <p className="font-medium text-sm">{modelMetadata.sample_count}</p>
-                                </div>
-                                <div>
-                                  <p className="text-sm text-muted-foreground">Intents</p>
-                                  <p className="font-medium text-sm">{modelMetadata.intents.length}</p>
-                                </div>
-                                <div>
-                                  <p className="text-sm text-muted-foreground">Entity Types</p>
-                                  <p className="font-medium text-sm">{modelMetadata.entities.length}</p>
-                                </div>
-                              </div>
-                              
-                              {/* Intents List */}
-                              <div>
-                                <p className="text-sm font-semibold mb-2 flex items-center gap-2">
-                                  <Brain className="h-4 w-4" />
-                                  Learned Intents ({modelMetadata.intents.length}):
-                                </p>
-                                <div className="flex flex-wrap gap-2">
-                                  {modelMetadata.intents.map((intent, idx) => (
-                                    <Badge key={idx} variant="secondary">
-                                      {intent}
-                                    </Badge>
-                                  ))}
-                                </div>
-                              </div>
-                              
-                              {/* Entities List */}
-                              {modelMetadata.entities.length > 0 && (
-                                <div>
-                                  <p className="text-sm font-semibold mb-2 flex items-center gap-2">
-                                    <Tag className="h-4 w-4" />
-                                    Entity Types ({modelMetadata.entities.length}):
-                                  </p>
-                                  <div className="flex flex-wrap gap-2">
-                                    {modelMetadata.entities.map((entity, idx) => (
-                                      <Badge key={idx} variant="outline">
-                                        {entity}
-                                      </Badge>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
-                              
-                              <div className="pt-2 border-t">
-                                <p className="text-xs text-muted-foreground">
-                                  Trained: {new Date(modelMetadata.trained_at).toLocaleString()}
-                                </p>
-                              </div>
-                            </CardContent>
-                          </Card>
-                        )}
-                        
-                        <div className="bg-muted p-4 rounded-md">
-                          <p className="text-sm"><strong>Model Path:</strong> {currentTrainingJob.modelPath}</p>
-                          <p className="text-sm mt-2"><strong>Completed:</strong> {new Date(currentTrainingJob.finishedAt!).toLocaleString()}</p>
-                        </div>
-                        <Button onClick={startTraining} variant="outline" className="w-full" disabled={!selectedDatasetId}>
-                          <PlayCircle className="h-4 w-4 mr-2" />
-                          Retrain Model
-                        </Button>
-                      </div>
                     ) : (
                       <Button onClick={startTraining} className="w-full" size="lg" disabled={!selectedDatasetId}>
                         <PlayCircle className="h-4 w-4 mr-2" />
@@ -738,27 +790,60 @@ export default function WorkspacePage() {
 
           {/* Chat Tab */}
           <TabsContent value="chat" className="space-y-6">
+            {(!currentTrainingJob || currentTrainingJob.status !== 'completed') && (
+              <Card className="border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-900/10">
+                <CardContent className="p-4">
+                  <div className="flex items-start gap-3">
+                    <AlertCircle className="h-5 w-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-sm font-medium text-amber-900 dark:text-amber-100">
+                        No Trained Model - Train a model first to test the chatbot
+                      </p>
+                      <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">
+                        Go to the Training tab and train a model with your dataset.
+                      </p>
+                    </div>
+                    <Button size="sm" variant="outline" className="ml-auto" onClick={() => setActiveTab('training')}>
+                      Train Now
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+            
             <Card className="h-[600px] flex flex-col">
               <CardHeader>
-                <CardTitle>Test Your Chatbot</CardTitle>
+                <CardTitle>Test Your NLU Model</CardTitle>
                 <CardDescription>
-                  Chat with your trained model and see responses in real-time
+                  Chat with your trained model and see NLU responses with intent classification
                 </CardDescription>
               </CardHeader>
               <CardContent className="flex-1 flex flex-col p-0">
                 <div className="flex-1 overflow-y-auto p-6 space-y-4">
                   {messages.length === 0 && (
                     <div className="text-center py-12">
-                      <MessageSquare className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                      <p className="text-muted-foreground">Start chatting to test your model</p>
+                      <Bot className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                      <p className="text-muted-foreground">Start chatting to test your trained NLU model</p>
+                      {currentTrainingJob?.status === 'completed' && modelMetadata && (
+                        <div className="mt-4 text-sm text-muted-foreground">
+                          <p>Model is ready with:</p>
+                          <p>{modelMetadata.intents.length} intents • {modelMetadata.entities.length} entities • {modelMetadata.sample_count} examples</p>
+                        </div>
+                      )}
                     </div>
                   )}
                   {messages.map(message => (
                     <div
                       key={message.id}
-                      className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                      className={`flex gap-3 ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
                     >
-                      <div className={`max-w-[80%] ${message.role === 'user' ? 'order-2' : 'order-1'}`}>
+                      {message.role === 'bot' && (
+                        <div className="h-8 w-8 rounded-full bg-indigo-600 flex items-center justify-center flex-shrink-0">
+                          <Bot className="h-5 w-5 text-white" />
+                        </div>
+                      )}
+                      
+                      <div className={`max-w-[80%]`}>
                         <div
                           className={`rounded-lg p-4 ${
                             message.role === 'user'
@@ -766,9 +851,18 @@ export default function WorkspacePage() {
                               : 'bg-muted'
                           }`}
                         >
-                          <p className="whitespace-pre-wrap">{message.text}</p>
+                          <p className="whitespace-pre-wrap text-sm">{message.text}</p>
                         </div>
+                        <span className="text-xs text-muted-foreground mt-1 block">
+                          {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
                       </div>
+
+                      {message.role === 'user' && (
+                        <div className="h-8 w-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center flex-shrink-0">
+                          <User className="h-5 w-5 text-white" />
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -777,8 +871,8 @@ export default function WorkspacePage() {
                     <Input
                       value={inputMessage}
                       onChange={(e) => setInputMessage(e.target.value)}
-                      onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
-                      placeholder="Type your message..."
+                      onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && sendMessage()}
+                      placeholder="Type your message to test NLU..."
                       disabled={isSending || !currentTrainingJob || currentTrainingJob.status !== 'completed'}
                     />
                     <Button 
