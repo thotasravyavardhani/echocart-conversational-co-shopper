@@ -4,6 +4,7 @@ Handles CSV/JSON/Rasa format datasets and Rasa NLU model training
 """
 from fastapi import FastAPI, File, UploadFile, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from typing import Optional, List, Dict, Any
 import json
@@ -13,6 +14,8 @@ import os
 from datetime import datetime
 import asyncio
 import aiohttp
+import subprocess
+import shutil
 
 app = FastAPI(title="EchoChat Backend", version="1.0.0")
 
@@ -30,14 +33,17 @@ NEXT_API_URL = os.getenv("NEXT_API_URL", "http://localhost:3000/api")
 RASA_URL = os.getenv("RASA_URL", "http://localhost:5005")
 MODELS_DIR = os.path.join(os.path.dirname(os.getcwd()), "models")
 ANNOTATIONS_DIR = os.path.join(os.path.dirname(os.getcwd()), "annotations")
+RASA_TRAINING_DIR = os.path.join(os.path.dirname(__file__), "rasa_training")
 
 # Ensure directories exist
 os.makedirs(MODELS_DIR, exist_ok=True)
 os.makedirs(ANNOTATIONS_DIR, exist_ok=True)
+os.makedirs(RASA_TRAINING_DIR, exist_ok=True)
 
 # Track the latest trained model for chatbot use
 latest_model_path = None
 latest_model_metadata = None
+rasa_agent = None  # Store loaded Rasa agent
 
 # ============================================================================
 # REQUEST/RESPONSE MODELS
@@ -263,39 +269,230 @@ async def validate_dataset(request: DatasetValidationRequest):
     return DatasetValidationResponse(**result)
 
 # ============================================================================
-# MODEL TRAINING
+# RASA NLU TRAINING (REAL IMPLEMENTATION)
 # ============================================================================
 
+def convert_to_rasa_format(file_path: str, format: str, output_path: str) -> Dict[str, Any]:
+    """Convert dataset to Rasa NLU format"""
+    try:
+        nlu_data = []
+        
+        if format == 'json':
+            with open(file_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            
+            if not isinstance(data, list):
+                data = [data]
+            
+            # Group by intent
+            intent_examples = {}
+            for item in data:
+                intent = item.get('intent', 'unknown')
+                text = item.get('text', '')
+                entities = item.get('entities', [])
+                
+                if intent not in intent_examples:
+                    intent_examples[intent] = []
+                
+                # Format with entity annotations
+                if entities:
+                    # Sort entities by start position
+                    entities.sort(key=lambda x: x.get('start', 0))
+                    annotated_text = text
+                    offset = 0
+                    for entity in entities:
+                        start = entity.get('start', 0) + offset
+                        end = entity.get('end', 0) + offset
+                        entity_type = entity.get('entity', 'unknown')
+                        entity_value = text[entity.get('start', 0):entity.get('end', 0)]
+                        annotation = f"[{entity_value}]({entity_type})"
+                        annotated_text = annotated_text[:start] + annotation + annotated_text[end:]
+                        offset += len(annotation) - (entity.get('end', 0) - entity.get('start', 0))
+                    intent_examples[intent].append(f"- {annotated_text}")
+                else:
+                    intent_examples[intent].append(f"- {text}")
+            
+            # Create Rasa format
+            for intent, examples in intent_examples.items():
+                nlu_data.append({
+                    'intent': intent,
+                    'examples': '\n'.join(examples)
+                })
+        
+        elif format == 'csv':
+            with open(file_path, 'r', encoding='utf-8') as f:
+                reader = csv.DictReader(f)
+                rows = list(reader)
+            
+            intent_examples = {}
+            for row in rows:
+                intent = row.get('intent', 'unknown')
+                text = row.get('text', '')
+                
+                if intent not in intent_examples:
+                    intent_examples[intent] = []
+                
+                intent_examples[intent].append(f"- {text}")
+            
+            for intent, examples in intent_examples.items():
+                nlu_data.append({
+                    'intent': intent,
+                    'examples': '\n'.join(examples)
+                })
+        
+        elif format == 'rasa':
+            # Already in Rasa format, just copy
+            shutil.copy(file_path, output_path)
+            return validate_rasa_format(file_path)
+        
+        # Write to YAML
+        rasa_yaml = {'version': '3.1', 'nlu': nlu_data}
+        with open(output_path, 'w', encoding='utf-8') as f:
+            yaml.dump(rasa_yaml, f, allow_unicode=True, sort_keys=False)
+        
+        return validate_rasa_format(output_path)
+        
+    except Exception as e:
+        raise Exception(f"Conversion failed: {str(e)}")
+
+async def train_rasa_model(training_data_path: str, model_name: str) -> str:
+    """Train actual Rasa NLU model"""
+    try:
+        # Create config.yml for NLU-only training
+        config = """
+language: en
+pipeline:
+  - name: WhitespaceTokenizer
+  - name: RegexFeaturizer
+  - name: LexicalSyntacticFeaturizer
+  - name: CountVectorsFeaturizer
+  - name: CountVectorsFeaturizer
+    analyzer: char_wb
+    min_ngram: 1
+    max_ngram: 4
+  - name: DIETClassifier
+    epochs: 100
+    constrain_similarities: true
+  - name: EntitySynonymMapper
+  - name: ResponseSelector
+    epochs: 100
+    constrain_similarities: true
+  - name: FallbackClassifier
+    threshold: 0.3
+    ambiguity_threshold: 0.1
+
+policies:
+  - name: MemoizationPolicy
+  - name: RulePolicy
+"""
+        
+        config_path = os.path.join(RASA_TRAINING_DIR, 'config.yml')
+        with open(config_path, 'w') as f:
+            f.write(config)
+        
+        # Create domain.yml
+        with open(training_data_path, 'r', encoding='utf-8') as f:
+            training_data = yaml.safe_load(f)
+        
+        intents = []
+        if 'nlu' in training_data:
+            intents = [item['intent'] for item in training_data['nlu'] if 'intent' in item]
+        
+        domain = {
+            'version': '3.1',
+            'intents': intents,
+            'responses': {},
+            'session_config': {
+                'session_expiration_time': 60,
+                'carry_over_slots_to_new_session': True
+            }
+        }
+        
+        domain_path = os.path.join(RASA_TRAINING_DIR, 'domain.yml')
+        with open(domain_path, 'w') as f:
+            yaml.dump(domain, f)
+        
+        # Create data directory
+        data_dir = os.path.join(RASA_TRAINING_DIR, 'data')
+        os.makedirs(data_dir, exist_ok=True)
+        shutil.copy(training_data_path, os.path.join(data_dir, 'nlu.yml'))
+        
+        # Train with Rasa
+        output_dir = os.path.join(MODELS_DIR, model_name)
+        os.makedirs(output_dir, exist_ok=True)
+        
+        cmd = [
+            'rasa', 'train', 'nlu',
+            '--config', config_path,
+            '--domain', domain_path,
+            '--data', data_dir,
+            '--out', output_dir,
+            '--fixed-model-name', model_name
+        ]
+        
+        process = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            cwd=RASA_TRAINING_DIR
+        )
+        
+        stdout, stderr = process.communicate()
+        
+        if process.returncode != 0:
+            raise Exception(f"Rasa training failed: {stderr}")
+        
+        model_path = os.path.join(output_dir, f"{model_name}.tar.gz")
+        
+        if not os.path.exists(model_path):
+            # Check for model in output directory
+            model_files = [f for f in os.listdir(output_dir) if f.endswith('.tar.gz')]
+            if model_files:
+                model_path = os.path.join(output_dir, model_files[0])
+        
+        return model_path
+        
+    except Exception as e:
+        raise Exception(f"Rasa training error: {str(e)}")
+
+async def load_rasa_agent(model_path: str):
+    """Load trained Rasa agent for inference"""
+    global rasa_agent
+    try:
+        from rasa.core.agent import Agent
+        rasa_agent = await Agent.load(model_path)
+        print(f"✅ Rasa agent loaded from: {model_path}")
+    except Exception as e:
+        print(f"Failed to load Rasa agent: {e}")
+        rasa_agent = None
+
 async def train_model_task(training_job_id: int, dataset_id: int, file_path: str, format: str):
-    """Background task for model training with actual Rasa integration"""
-    global latest_model_path, latest_model_metadata
+    """Background task for REAL Rasa NLU training"""
+    global latest_model_path, latest_model_metadata, rasa_agent
     
     try:
         # Update status to "training"
         async with aiohttp.ClientSession() as session:
             await session.patch(
                 f"{NEXT_API_URL}/training-jobs/{training_job_id}",
-                json={"status": "training", "log": "Starting Rasa NLU training...\n"}
+                json={"status": "training", "log": "🚀 Starting Rasa NLU training...\n"}
             )
         
         log_messages = []
         
-        # Step 1: Prepare training data (20%)
-        await asyncio.sleep(2)
-        log_messages.append("📋 Loading and preparing training data...")
+        # Step 1: Convert to Rasa format (20%)
+        await asyncio.sleep(1)
+        log_messages.append("📋 Converting dataset to Rasa NLU format...")
         
-        # Load dataset to extract metadata
         abs_file_path = os.path.join(os.path.dirname(os.getcwd()), file_path.lstrip('/'))
         if not os.path.exists(abs_file_path):
             abs_file_path = os.path.join(os.path.dirname(os.getcwd()), "public", file_path.lstrip('/'))
         
-        # Get metadata from validation
-        if format == 'json':
-            metadata = validate_json_format(abs_file_path)
-        elif format == 'csv':
-            metadata = validate_csv_format(abs_file_path)
-        else:
-            metadata = validate_rasa_format(abs_file_path)
+        rasa_data_path = os.path.join(RASA_TRAINING_DIR, f'training_data_{training_job_id}.yml')
+        metadata = convert_to_rasa_format(abs_file_path, format, rasa_data_path)
+        
+        log_messages.append(f"   ✓ Found {len(metadata.get('intents', []))} intents and {len(metadata.get('entities', []))} entity types")
         
         async with aiohttp.ClientSession() as session:
             await session.patch(
@@ -307,10 +504,11 @@ async def train_model_task(training_job_id: int, dataset_id: int, file_path: str
                 }
             )
         
-        # Step 2: Train intent classifier (40%)
-        await asyncio.sleep(3)
-        log_messages.append("🎯 Training intent classifier with DIET algorithm...")
-        log_messages.append(f"   └─ Training on {len(metadata.get('intents', []))} intents")
+        # Step 2: Train Rasa model (80%)
+        log_messages.append("🎯 Training Rasa NLU model (this may take a few minutes)...")
+        log_messages.append("   └─ Using DIET algorithm for intent classification")
+        log_messages.append("   └─ Training entity extraction with CRF")
+        
         async with aiohttp.ClientSession() as session:
             await session.patch(
                 f"{NEXT_API_URL}/training-jobs/{training_job_id}",
@@ -321,46 +519,26 @@ async def train_model_task(training_job_id: int, dataset_id: int, file_path: str
                 }
             )
         
-        # Step 3: Train entity recognizer (60%)
-        await asyncio.sleep(3)
-        log_messages.append("🏷️ Training entity recognizer with CRF...")
-        log_messages.append(f"   └─ Training on {len(metadata.get('entities', []))} entity types")
-        async with aiohttp.ClientSession() as session:
-            await session.patch(
-                f"{NEXT_API_URL}/training-jobs/{training_job_id}",
-                json={
-                    "status": "training",
-                    "progress": 0.6,
-                    "log": "\n".join(log_messages)
-                }
-            )
-        
-        # Step 4: Optimize model (80%)
-        await asyncio.sleep(2)
-        log_messages.append("⚙️ Optimizing model weights and parameters...")
-        async with aiohttp.ClientSession() as session:
-            await session.patch(
-                f"{NEXT_API_URL}/training-jobs/{training_job_id}",
-                json={
-                    "status": "training",
-                    "progress": 0.8,
-                    "log": "\n".join(log_messages)
-                }
-            )
-        
-        # Step 5: Save model (100%)
-        await asyncio.sleep(1)
         model_name = f"model_{training_job_id}_{int(datetime.now().timestamp())}"
-        model_path = os.path.join(MODELS_DIR, f"{model_name}.tar.gz")
+        model_path = await train_rasa_model(rasa_data_path, model_name)
         
-        # Create a placeholder model file (in production, this would be the actual Rasa model)
-        with open(model_path, 'wb') as f:
-            f.write(b'RASA_MODEL_PLACEHOLDER')
+        log_messages.append(f"💾 Model saved: {model_name}.tar.gz")
         
-        log_messages.append(f"💾 Model saved successfully: {model_name}.tar.gz")
-        log_messages.append(f"✅ Training completed! Model ready for chatbot use.")
+        async with aiohttp.ClientSession() as session:
+            await session.patch(
+                f"{NEXT_API_URL}/training-jobs/{training_job_id}",
+                json={
+                    "status": "training",
+                    "progress": 0.9,
+                    "log": "\n".join(log_messages)
+                }
+            )
         
-        # Store model metadata
+        # Step 3: Load model for inference
+        log_messages.append("🔄 Loading trained model for inference...")
+        await load_rasa_agent(model_path)
+        
+        latest_model_path = model_path
         latest_model_metadata = {
             "intents": metadata.get('intents', []),
             "entities": metadata.get('entities', []),
@@ -369,8 +547,7 @@ async def train_model_task(training_job_id: int, dataset_id: int, file_path: str
             "model_name": model_name
         }
         
-        # Update the global latest model path for chatbot
-        latest_model_path = model_path
+        log_messages.append("✅ Training completed! Model ready for chatbot use.")
         
         # Mark as completed
         async with aiohttp.ClientSession() as session:
@@ -379,7 +556,7 @@ async def train_model_task(training_job_id: int, dataset_id: int, file_path: str
                 json={
                     "status": "completed",
                     "progress": 1.0,
-                    "modelPath": f"/models/{model_name}.tar.gz",
+                    "modelPath": f"/models/{model_name}/{model_name}.tar.gz",
                     "finishedAt": datetime.now().isoformat(),
                     "log": "\n".join(log_messages)
                 }
@@ -391,7 +568,6 @@ async def train_model_task(training_job_id: int, dataset_id: int, file_path: str
         error_message = f"❌ Training failed: {str(e)}"
         print(error_message)
         
-        # Mark as failed
         try:
             async with aiohttp.ClientSession() as session:
                 await session.patch(
@@ -406,9 +582,8 @@ async def train_model_task(training_job_id: int, dataset_id: int, file_path: str
 
 @app.post("/train")
 async def train_model(request: TrainingRequest, background_tasks: BackgroundTasks):
-    """Start model training process"""
+    """Start REAL Rasa NLU training"""
     
-    # Validate file exists
     file_path = request.file_path.lstrip('/')
     abs_file_path = os.path.join(os.path.dirname(os.getcwd()), file_path)
     
@@ -422,7 +597,6 @@ async def train_model(request: TrainingRequest, background_tasks: BackgroundTask
                 detail=f"Training file not found: {file_path}"
             )
     
-    # Start training in background
     background_tasks.add_task(
         train_model_task, 
         request.training_job_id, 
@@ -438,175 +612,98 @@ async def train_model(request: TrainingRequest, background_tasks: BackgroundTask
     }
 
 # ============================================================================
-# CHAT & NLU INFERENCE
+# CHAT & NLU INFERENCE (REAL RASA)
 # ============================================================================
 
 @app.post("/chat")
 async def chat_inference(request: ChatRequest):
-    """Process chat message - uses trained model if available"""
-    global latest_model_path, latest_model_metadata
+    """Process chat with REAL Rasa NLU model"""
+    global latest_model_path, latest_model_metadata, rasa_agent
     
-    # If we have a trained model, use NLU-powered responses
-    if latest_model_path and os.path.exists(latest_model_path):
-        message_lower = request.message.lower()
-        detected_intent = "unknown"
-        confidence = 0.0
-        detected_entities = []
-        
-        # Simulate intent classification based on trained intents
-        if latest_model_metadata and latest_model_metadata.get('intents'):
-            trained_intents = latest_model_metadata.get('intents', [])
+    # Try to use Rasa agent if loaded
+    if rasa_agent:
+        try:
+            result = await rasa_agent.parse_message(request.message)
             
-            # Simple keyword matching for demo purposes
-            intent_keywords = {
-                'greet': ['hello', 'hi', 'hey', 'greetings'],
-                'product_search': ['find', 'search', 'looking for', 'show me', 'need'],
-                'track_order': ['track', 'order', 'delivery', 'shipping', 'where is'],
-                'mood_tired': ['tired', 'exhausted', 'sleepy', 'worn out'],
-                'mood_excited': ['excited', 'pumped', 'energetic', 'thrilled'],
-                'mood_lazy': ['lazy', 'chill', 'relax', 'cozy'],
-                'sustainability': ['eco', 'sustainable', 'green', 'environment'],
-                'price_filter': ['under', 'price', 'cheap', 'affordable', 'budget'],
-                'help': ['help', 'what can you', 'how do', 'assist']
+            intent = result.get('intent', {})
+            entities = result.get('entities', [])
+            
+            # Format response
+            intent_name = intent.get('name', 'unknown')
+            confidence = intent.get('confidence', 0.0)
+            
+            response_text = f"🤖 **NLU Model Response**\n\n"
+            response_text += f"**Your Input:** \"{request.message}\"\n\n"
+            response_text += f"**Intent Classification:**\n"
+            response_text += f"• Detected: `{intent_name}`\n"
+            response_text += f"• Confidence: {confidence:.2f}\n\n"
+            
+            if entities:
+                response_text += f"**Entity Extraction:**\n"
+                for entity in entities:
+                    entity_type = entity.get('entity', 'unknown')
+                    entity_value = entity.get('value', '')
+                    entity_conf = entity.get('confidence', 0.0)
+                    response_text += f"• {entity_type}: \"{entity_value}\" (conf: {entity_conf:.2f})\n"
+            else:
+                response_text += f"**Entity Extraction:**\n• No entities detected\n"
+            
+            response_text += f"\n**Model Information:**\n"
+            response_text += f"• Name: {latest_model_metadata.get('model_name', 'unknown')}\n"
+            response_text += f"• Training Examples: {latest_model_metadata.get('sample_count', 0)}\n"
+            response_text += f"• Learned Intents: {len(latest_model_metadata.get('intents', []))}\n"
+            response_text += f"• Entity Types: {len(latest_model_metadata.get('entities', []))}\n\n"
+            
+            intents_list = ', '.join(latest_model_metadata.get('intents', [])[:5])
+            if len(latest_model_metadata.get('intents', [])) > 5:
+                intents_list += "..."
+            response_text += f"**Available Intents:** {intents_list}\n\n"
+            response_text += f"✅ This is an NLU-powered response from your trained model!"
+            
+            return {
+                "responses": [{
+                    "text": response_text,
+                    "metadata": {
+                        "model_used": True,
+                        "model_path": latest_model_path,
+                        "intent": intent_name,
+                        "confidence": confidence,
+                        "entities": entities,
+                        "model_metadata": latest_model_metadata
+                    }
+                }]
             }
             
-            # Find matching intent
-            for intent, keywords in intent_keywords.items():
-                if intent in trained_intents and any(kw in message_lower for kw in keywords):
-                    detected_intent = intent
-                    confidence = 0.85 + (len([k for k in keywords if k in message_lower]) * 0.05)
-                    break
-            
-            # If no match, default to first trained intent
-            if detected_intent == "unknown" and trained_intents:
-                detected_intent = trained_intents[0]
-                confidence = 0.45
-        
-        # Extract entities (simple word matching)
-        if latest_model_metadata and latest_model_metadata.get('entities'):
-            trained_entities = latest_model_metadata.get('entities', [])
-            words = request.message.split()
-            
-            for i, word in enumerate(words):
-                # Check if word matches entity patterns
-                if 'price' in trained_entities:
-                    # Look for price patterns
-                    import re
-                    price_match = re.search(r'\$?\d+', word)
-                    if price_match:
-                        detected_entities.append({
-                            "entity": "price",
-                            "value": word,
-                            "confidence": 0.92
-                        })
-                
-                if 'product' in trained_entities and i > 0:
-                    # Simple heuristic: nouns after verbs might be products
-                    if words[i-1] in ['find', 'show', 'need', 'want', 'looking']:
-                        detected_entities.append({
-                            "entity": "product",
-                            "value": word,
-                            "confidence": 0.78
-                        })
-        
-        # Build NLU response
-        response_text = f"""🤖 **NLU Model Response**
-
-**Your Input:** "{request.message}"
-
-**Intent Classification:**
-• Detected: `{detected_intent}`
-• Confidence: {confidence:.2f}
-
-**Entity Extraction:**"""
-        
-        if detected_entities:
-            for ent in detected_entities:
-                response_text += f"\n• {ent['entity']}: \"{ent['value']}\" (conf: {ent['confidence']:.2f})"
-        else:
-            response_text += "\n• No entities detected"
-        
-        response_text += f"""
-
-**Model Information:**
-• Name: {latest_model_metadata.get('model_name', 'N/A')}
-• Training Examples: {latest_model_metadata.get('sample_count', 0)}
-• Learned Intents: {len(latest_model_metadata.get('intents', []))}
-• Entity Types: {len(latest_model_metadata.get('entities', []))}
-
-**Available Intents:** {', '.join(latest_model_metadata.get('intents', [])[:5])}{'...' if len(latest_model_metadata.get('intents', [])) > 5 else ''}
-
-✅ This is an NLU-powered response from your trained model!"""
-        
-        return {
-            "responses": [{
-                "text": response_text,
-                "metadata": {
-                    "model_used": True,
-                    "model_path": latest_model_path,
-                    "intent": detected_intent,
-                    "confidence": confidence,
-                    "entities": detected_entities,
-                    "model_metadata": latest_model_metadata
-                }
-            }]
-        }
+        except Exception as e:
+            print(f"Rasa inference error: {e}")
     
-    # Try to reach Rasa server if no trained model
-    try:
-        async with aiohttp.ClientSession() as session:
-            async with session.post(
-                f"{RASA_URL}/webhooks/rest/webhook",
-                json={
-                    "sender": request.sender,
-                    "message": request.message,
-                    "metadata": request.metadata
-                },
-                timeout=aiohttp.ClientTimeout(total=5)
-            ) as resp:
-                if resp.status == 200:
-                    rasa_response = await resp.json()
-                    return {"responses": rasa_response}
-    except Exception as e:
-        print(f"Rasa unavailable: {e}")
-    
-    # Fallback response when no model is trained
+    # Fallback if no model
     return {
         "responses": [{
-            "text": f"""⚠️ **No Trained Model Available**
-
-**Your Input:** "{request.message}"
-
-To get NLU-powered responses with intent classification and entity extraction:
-
-1. Go to your workspace
-2. Upload a training dataset (CSV/JSON/YAML)
-3. Train a model with your data
-4. Come back here to test it!
-
-Currently responding in echo mode without NLU capabilities.""",
+            "text": f"⚠️ **No Trained Model Available**\n\n**Your Input:** \"{request.message}\"\n\nTo get NLU-powered responses with intent classification and entity extraction:\n\n1. Go to your workspace\n2. Upload a training dataset (CSV/JSON/YAML)\n3. Train a model with your data\n4. Come back here to test it!\n\nCurrently responding in echo mode without NLU capabilities.",
             "metadata": {
-                "model_used": False,
-                "fallback": True
+                "model_used": False
             }
         }]
     }
 
 # ============================================================================
-# MODEL METADATA
+# MODEL EXPORT
 # ============================================================================
 
-@app.get("/model/metadata")
-async def get_model_metadata():
-    """Get metadata about the currently loaded model"""
-    global latest_model_path, latest_model_metadata
+@app.get("/models/export/{model_name}")
+async def export_model(model_name: str):
+    """Export trained model file"""
+    global latest_model_path
     
     if not latest_model_path or not os.path.exists(latest_model_path):
         raise HTTPException(status_code=404, detail="No trained model available")
     
-    return latest_model_metadata or {
-        "message": "Model loaded but metadata unavailable"
-    }
+    return FileResponse(
+        latest_model_path,
+        media_type='application/gzip',
+        filename=f"{model_name}.tar.gz"
+    )
 
 # ============================================================================
 # ANNOTATION TOOL
@@ -616,10 +713,8 @@ async def get_model_metadata():
 async def save_annotation(request: AnnotationRequest):
     """Save a manually annotated training example"""
     
-    # Create workspace-specific annotation file
     annotation_file = os.path.join(ANNOTATIONS_DIR, f"workspace_{request.workspace_id}.jsonl")
     
-    # Prepare annotation entry
     annotation_entry = {
         "text": request.text,
         "intent": request.intent,
@@ -635,7 +730,6 @@ async def save_annotation(request: AnnotationRequest):
         "annotated_at": datetime.now().isoformat()
     }
     
-    # Append to JSONL file
     with open(annotation_file, 'a', encoding='utf-8') as f:
         f.write(json.dumps(annotation_entry) + '\n')
     
@@ -665,7 +759,6 @@ async def get_annotations(workspace_id: int):
 async def tokenize_text(request: TokenizeRequest):
     """Tokenize text into words/tokens"""
     
-    # Simple whitespace tokenization (in production, use spaCy or similar)
     tokens = request.text.split()
     
     return {
@@ -680,9 +773,17 @@ async def tokenize_text(request: TokenizeRequest):
         ]
     }
 
-# ============================================================================
-# HEALTH & INFO
-# ============================================================================
+@app.get("/model/metadata")
+async def get_model_metadata():
+    """Get metadata about the currently loaded model"""
+    global latest_model_path, latest_model_metadata
+    
+    if not latest_model_path or not os.path.exists(latest_model_path):
+        raise HTTPException(status_code=404, detail="No trained model available")
+    
+    return latest_model_metadata or {
+        "message": "Model loaded but metadata unavailable"
+    }
 
 @app.get("/")
 async def root():
@@ -690,30 +791,23 @@ async def root():
         "service": "EchoChat Backend",
         "version": "1.0.0",
         "status": "running",
+        "rasa_enabled": rasa_agent is not None,
         "endpoints": {
             "validation": "/datasets/validate",
             "training": "/train",
             "chat": "/chat",
             "annotations": "/annotations/save",
-            "tokenize": "/tokenize"
+            "tokenize": "/tokenize",
+            "export": "/models/export/{model_name}"
         }
     }
 
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""
-    rasa_status = "unknown"
-    
-    try:
-        async with aiohttp.ClientSession() as session:
-            async with session.get(f"{RASA_URL}/", timeout=aiohttp.ClientTimeout(total=2)) as resp:
-                rasa_status = "connected" if resp.status == 200 else "disconnected"
-    except:
-        rasa_status = "disconnected"
-    
     return {
         "status": "healthy",
-        "rasa_status": rasa_status,
+        "rasa_loaded": rasa_agent is not None,
         "model_loaded": latest_model_path is not None,
         "timestamp": datetime.now().isoformat()
     }
