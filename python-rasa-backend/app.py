@@ -44,6 +44,7 @@ os.makedirs(RASA_TRAINING_DIR, exist_ok=True)
 latest_model_path = None
 latest_model_metadata = None
 rasa_agent = None  # Store loaded Rasa agent
+intent_responses = {}  # Store intent -> response mapping from training data
 
 # ============================================================================
 # REQUEST/RESPONSE MODELS
@@ -273,9 +274,12 @@ async def validate_dataset(request: DatasetValidationRequest):
 # ============================================================================
 
 def convert_to_rasa_format(file_path: str, format: str, output_path: str) -> Dict[str, Any]:
-    """Convert dataset to Rasa NLU format"""
+    """Convert dataset to Rasa NLU format and extract responses"""
+    global intent_responses
+    
     try:
         nlu_data = []
+        intent_responses = {}  # Reset responses
         
         if format == 'json':
             with open(file_path, 'r', encoding='utf-8') as f:
@@ -284,15 +288,20 @@ def convert_to_rasa_format(file_path: str, format: str, output_path: str) -> Dic
             if not isinstance(data, list):
                 data = [data]
             
-            # Group by intent
+            # Group by intent and extract responses
             intent_examples = {}
             for item in data:
                 intent = item.get('intent', 'unknown')
                 text = item.get('text', '')
+                response = item.get('response', '')  # Extract response
                 entities = item.get('entities', [])
                 
                 if intent not in intent_examples:
                     intent_examples[intent] = []
+                
+                # Store response for this intent
+                if response and intent not in intent_responses:
+                    intent_responses[intent] = response
                 
                 # Format with entity annotations
                 if entities:
@@ -328,9 +337,14 @@ def convert_to_rasa_format(file_path: str, format: str, output_path: str) -> Dic
             for row in rows:
                 intent = row.get('intent', 'unknown')
                 text = row.get('text', '')
+                response = row.get('response', '')
                 
                 if intent not in intent_examples:
                     intent_examples[intent] = []
+                
+                # Store response for this intent
+                if response and intent not in intent_responses:
+                    intent_responses[intent] = response
                 
                 intent_examples[intent].append(f"- {text}")
             
@@ -343,6 +357,16 @@ def convert_to_rasa_format(file_path: str, format: str, output_path: str) -> Dic
         elif format == 'rasa':
             # Already in Rasa format, just copy
             shutil.copy(file_path, output_path)
+            
+            # Try to extract responses from domain or responses section
+            with open(file_path, 'r', encoding='utf-8') as f:
+                rasa_data = yaml.safe_load(f)
+            
+            if 'responses' in rasa_data:
+                for intent, response_list in rasa_data['responses'].items():
+                    if response_list and len(response_list) > 0:
+                        intent_responses[intent] = response_list[0].get('text', '')
+            
             return validate_rasa_format(file_path)
         
         # Write to YAML
@@ -350,6 +374,7 @@ def convert_to_rasa_format(file_path: str, format: str, output_path: str) -> Dic
         with open(output_path, 'w', encoding='utf-8') as f:
             yaml.dump(rasa_yaml, f, allow_unicode=True, sort_keys=False)
         
+        print(f"✅ Extracted {len(intent_responses)} intent responses from training data")
         return validate_rasa_format(output_path)
         
     except Exception as e:
@@ -617,52 +642,36 @@ async def train_model(request: TrainingRequest, background_tasks: BackgroundTask
 
 @app.post("/chat")
 async def chat_inference(request: ChatRequest):
-    """Process chat with REAL Rasa NLU model"""
-    global latest_model_path, latest_model_metadata, rasa_agent
+    """Process chat with REAL Rasa NLU model and return training data responses"""
+    global latest_model_path, latest_model_metadata, rasa_agent, intent_responses
     
     # Try to use Rasa agent if loaded
-    if rasa_agent:
+    if rasa_agent and intent_responses:
         try:
             result = await rasa_agent.parse_message(request.message)
             
             intent = result.get('intent', {})
             entities = result.get('entities', [])
             
-            # Format response
             intent_name = intent.get('name', 'unknown')
             confidence = intent.get('confidence', 0.0)
             
-            response_text = f"🤖 **NLU Model Response**\n\n"
-            response_text += f"**Your Input:** \"{request.message}\"\n\n"
-            response_text += f"**Intent Classification:**\n"
-            response_text += f"• Detected: `{intent_name}`\n"
-            response_text += f"• Confidence: {confidence:.2f}\n\n"
+            # Get the response from training data
+            bot_response = intent_responses.get(intent_name, 
+                f"I detected the intent '{intent_name}' but no response was defined in the training data.")
             
+            # Add entity information if entities were detected
             if entities:
-                response_text += f"**Entity Extraction:**\n"
+                entity_info = "\n\n**Detected Entities:**\n"
                 for entity in entities:
                     entity_type = entity.get('entity', 'unknown')
                     entity_value = entity.get('value', '')
-                    entity_conf = entity.get('confidence', 0.0)
-                    response_text += f"• {entity_type}: \"{entity_value}\" (conf: {entity_conf:.2f})\n"
-            else:
-                response_text += f"**Entity Extraction:**\n• No entities detected\n"
-            
-            response_text += f"\n**Model Information:**\n"
-            response_text += f"• Name: {latest_model_metadata.get('model_name', 'unknown')}\n"
-            response_text += f"• Training Examples: {latest_model_metadata.get('sample_count', 0)}\n"
-            response_text += f"• Learned Intents: {len(latest_model_metadata.get('intents', []))}\n"
-            response_text += f"• Entity Types: {len(latest_model_metadata.get('entities', []))}\n\n"
-            
-            intents_list = ', '.join(latest_model_metadata.get('intents', [])[:5])
-            if len(latest_model_metadata.get('intents', [])) > 5:
-                intents_list += "..."
-            response_text += f"**Available Intents:** {intents_list}\n\n"
-            response_text += f"✅ This is an NLU-powered response from your trained model!"
+                    entity_info += f"• {entity_type}: \"{entity_value}\"\n"
+                bot_response += entity_info
             
             return {
                 "responses": [{
-                    "text": response_text,
+                    "text": bot_response,
                     "metadata": {
                         "model_used": True,
                         "model_path": latest_model_path,
@@ -680,7 +689,7 @@ async def chat_inference(request: ChatRequest):
     # Fallback if no model
     return {
         "responses": [{
-            "text": f"⚠️ **No Trained Model Available**\n\n**Your Input:** \"{request.message}\"\n\nTo get NLU-powered responses with intent classification and entity extraction:\n\n1. Go to your workspace\n2. Upload a training dataset (CSV/JSON/YAML)\n3. Train a model with your data\n4. Come back here to test it!\n\nCurrently responding in echo mode without NLU capabilities.",
+            "text": f"⚠️ **No Trained Model Available**\n\n**Your Input:** \"{request.message}\"\n\nTo get responses from your trained dataset:\n\n1. Go to your workspace\n2. Upload a training dataset (CSV/JSON/YAML) with 'text', 'intent', and 'response' columns\n3. Train a model with your data\n4. Come back here to test it!\n\nCurrently responding in echo mode without NLU capabilities.",
             "metadata": {
                 "model_used": False
             }
