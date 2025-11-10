@@ -658,27 +658,40 @@ async def chat_inference(request: ChatRequest):
             
             # Get the response from training data
             bot_response = intent_responses.get(intent_name, 
-                f"I detected the intent '{intent_name}' but no response was defined in the training data.")
+                f"I understood your intent as '{intent_name}', but I don't have a response for it yet. Try adding a 'response' field in your training data!")
+            
+            # Format the complete response with NLU details
+            formatted_response = bot_response
+            
+            # Add NLU analysis section
+            nlu_analysis = f"\n\n---\n\n**🧠 NLU Analysis:**"
+            nlu_analysis += f"\n• **Intent:** {intent_name}"
+            nlu_analysis += f"\n• **Confidence:** {confidence:.2%}"
             
             # Add entity information if entities were detected
             if entities:
-                entity_info = "\n\n**Detected Entities:**\n"
+                nlu_analysis += f"\n• **Entities Detected:** {len(entities)}"
                 for entity in entities:
                     entity_type = entity.get('entity', 'unknown')
                     entity_value = entity.get('value', '')
-                    entity_info += f"• {entity_type}: \"{entity_value}\"\n"
-                bot_response += entity_info
+                    entity_conf = entity.get('confidence_entity', 0.0)
+                    nlu_analysis += f"\n  - {entity_type}: \"{entity_value}\" (confidence: {entity_conf:.2%})"
+            else:
+                nlu_analysis += f"\n• **Entities:** None detected"
+            
+            formatted_response += nlu_analysis
             
             return {
                 "responses": [{
-                    "text": bot_response,
+                    "text": formatted_response,
                     "metadata": {
                         "model_used": True,
                         "model_path": latest_model_path,
                         "intent": intent_name,
                         "confidence": confidence,
                         "entities": entities,
-                        "model_metadata": latest_model_metadata
+                        "model_metadata": latest_model_metadata,
+                        "raw_response": bot_response  # Original response without NLU details
                     }
                 }]
             }
