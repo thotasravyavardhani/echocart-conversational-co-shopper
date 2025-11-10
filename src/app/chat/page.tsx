@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Avatar } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Loader2, Send, ArrowLeft, Bot, User, CheckCircle2, AlertCircle, Sparkles } from 'lucide-react';
+import { Loader2, Send, ArrowLeft, Sparkles, Bot, User, CheckCircle2, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface Message {
@@ -17,10 +17,13 @@ interface Message {
   sender: 'user' | 'bot';
   text: string;
   timestamp: Date;
-  modelUsed?: boolean;
-  intent?: string;
-  confidence?: number;
-  entities?: any[];
+  metadata?: {
+    model_used?: boolean;
+    intent?: string;
+    confidence?: number;
+    entities?: any[];
+    model_metadata?: any;
+  };
 }
 
 export default function ChatPage() {
@@ -34,7 +37,6 @@ export default function ChatPage() {
   const [isTyping, setIsTyping] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [hasTrainedModel, setHasTrainedModel] = useState(false);
-  const [modelMetadata, setModelMetadata] = useState<any>(null);
   const [sessionId] = useState(() => `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
@@ -65,15 +67,6 @@ export default function ChatPage() {
         const jobs = await response.json();
         const completedJob = jobs.find((job: any) => job.status === 'completed');
         setHasTrainedModel(!!completedJob);
-        
-        // Fetch model metadata
-        if (completedJob) {
-          const metaResponse = await fetch('http://localhost:8000/model/metadata');
-          if (metaResponse.ok) {
-            const meta = await metaResponse.json();
-            setModelMetadata(meta);
-          }
-        }
       }
     } catch (error) {
       console.error('Failed to check training status:', error);
@@ -93,7 +86,7 @@ export default function ChatPage() {
     const userMessage: Message = {
       id: `user_${Date.now()}`,
       sender: 'user',
-      text,
+      text: text,
       timestamp: new Date(),
     };
 
@@ -103,7 +96,7 @@ export default function ChatPage() {
     setIsTyping(true);
 
     try {
-      // Call Python backend directly for trained model responses
+      // Call Python backend directly for NLU responses
       const response = await fetch('http://localhost:8000/chat', {
         method: 'POST',
         headers: {
@@ -121,7 +114,7 @@ export default function ChatPage() {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to get response from AI');
+        throw new Error('Failed to get response from AI backend');
       }
 
       const data = await response.json();
@@ -134,10 +127,7 @@ export default function ChatPage() {
           sender: 'bot',
           text: botResponse.text || '',
           timestamp: new Date(),
-          modelUsed: botResponse.metadata?.model_used || false,
-          intent: botResponse.metadata?.intent,
-          confidence: botResponse.metadata?.confidence,
-          entities: botResponse.metadata?.entities || [],
+          metadata: botResponse.metadata || {},
         };
 
         setMessages(prev => [...prev, botMessage]);
@@ -149,13 +139,13 @@ export default function ChatPage() {
     } catch (error) {
       console.error('Chat error:', error);
       
-      // Fallback response
+      // Fallback response with setup instructions
       const errorMessage: Message = {
         id: `bot_${Date.now()}`,
         sender: 'bot',
-        text: "⚠️ Failed to connect to the Python backend.\n\nMake sure the backend is running:\n\n1. Open a terminal\n2. cd python-rasa-backend\n3. venv\\Scripts\\activate (Windows) or source venv/bin/activate (Mac/Linux)\n4. python app.py\n\nThe backend should start on http://localhost:8000",
+        text: "⚠️ **Unable to Connect to Python Backend**\n\nI'm having trouble connecting to the AI backend. Please make sure:\n\n**1. Python Backend is Running:**\n```\ncd python-rasa-backend\nvenv\\Scripts\\activate  (Windows)\nsource venv/bin/activate  (Mac/Linux)\npython app.py\n```\n\n**2. Backend URL is Correct:**\nShould be running on `http://localhost:8000`\n\n**3. Model is Trained:**\nGo to your workspace → Training tab → Train a model with your dataset\n\nOnce the backend is running, refresh this page and try again!",
         timestamp: new Date(),
-        modelUsed: false,
+        metadata: { model_used: false },
       };
       
       setMessages(prev => [...prev, errorMessage]);
@@ -206,15 +196,15 @@ export default function ChatPage() {
       <header className="border-b bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm sticky top-0 z-10">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Button variant="ghost" size="sm" onClick={() => router.push(`/workspace/${workspaceId}`)}>
+            <Button variant="ghost" size="sm" onClick={() => router.push('/dashboard')}>
               <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Workspace
+              Back
             </Button>
             <div className="flex items-center gap-2">
               <Bot className="h-6 w-6 text-indigo-600" />
               <div>
-                <h1 className="text-lg font-bold">NLU Model Testing</h1>
-                <p className="text-xs text-muted-foreground">Test your trained model</p>
+                <h1 className="text-lg font-bold">Test Your NLU Model</h1>
+                <p className="text-xs text-muted-foreground">Chat with your trained model and see NLU responses with intent classification</p>
               </div>
             </div>
           </div>
@@ -223,21 +213,19 @@ export default function ChatPage() {
               {hasTrainedModel ? (
                 <>
                   <CheckCircle2 className="h-3 w-3" />
-                  Model Active
+                  Trained Model Active
                 </>
               ) : (
                 <>
                   <AlertCircle className="h-3 w-3" />
-                  No Model
+                  No Model Trained
                 </>
               )}
             </Badge>
-            {modelMetadata && (
-              <Badge variant="outline" className="gap-1">
-                <Sparkles className="h-3 w-3" />
-                {modelMetadata.intents?.length || 0} intents
-              </Badge>
-            )}
+            <Badge variant="outline" className="gap-1">
+              <Sparkles className="h-3 w-3" />
+              Workspace #{workspaceId}
+            </Badge>
           </div>
         </div>
       </header>
@@ -250,10 +238,22 @@ export default function ChatPage() {
               <AlertCircle className="h-5 w-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
               <div className="flex-1">
                 <p className="text-sm font-medium text-amber-900 dark:text-amber-100">
-                  No Trained Model - Train a model first to get NLU responses
+                  ⚠️ **No Trained Model Available**
                 </p>
                 <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">
-                  Go to your workspace, upload a dataset, and train a model to test NLU capabilities here.
+                  **Your Input:** "{inputMessage || 'Hi'}"
+                  <br /><br />
+                  To get NLU-powered responses with intent classification and entity extraction:
+                  <br />
+                  1. Go to your workspace
+                  <br />
+                  2. Upload a training dataset (CSV/JSON/YAML)
+                  <br />
+                  3. Train a model with your data
+                  <br />
+                  4. Come back here to test it!
+                  <br /><br />
+                  Currently responding in echo mode without NLU capabilities.
                 </p>
               </div>
               <Button 
@@ -262,7 +262,7 @@ export default function ChatPage() {
                 className="border-amber-300 dark:border-amber-700"
                 onClick={() => router.push(`/workspace/${workspaceId}`)}
               >
-                Go to Workspace
+                Train Model
               </Button>
             </div>
           </div>
@@ -273,28 +273,38 @@ export default function ChatPage() {
       <main className="container mx-auto px-4 py-6 h-[calc(100vh-140px)] flex flex-col">
         <ScrollArea className="flex-1 pr-4" ref={scrollAreaRef}>
           <div className="space-y-4 pb-4">
+            {/* Welcome Message */}
             {messages.length === 0 && (
               <div className="text-center py-12">
-                <Bot className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
-                <p className="text-muted-foreground mb-2">
-                  {hasTrainedModel ? 'Start chatting to test your NLU model' : 'Train a model first to start testing'}
+                <Bot className="h-16 w-16 mx-auto mb-4 text-indigo-600" />
+                <h2 className="text-xl font-bold mb-2">Test Your NLU Model</h2>
+                <p className="text-muted-foreground mb-4">
+                  {hasTrainedModel 
+                    ? "Your trained model is ready! Start chatting to see intent classification and entity extraction."
+                    : "Train a model first to test NLU capabilities with intent detection and entity recognition."
+                  }
                 </p>
-                {modelMetadata && (
-                  <div className="mt-4 text-sm text-muted-foreground">
-                    <p className="font-medium">Model Ready:</p>
-                    <p>{modelMetadata.intents?.length || 0} intents • {modelMetadata.entities?.length || 0} entities • {modelMetadata.sample_count || 0} examples</p>
+                {hasTrainedModel && (
+                  <div className="bg-muted rounded-lg p-4 max-w-md mx-auto text-sm text-left">
+                    <p className="font-semibold mb-2">Try these examples:</p>
+                    <ul className="space-y-1 text-muted-foreground">
+                      <li>• "Hello" → Test greeting intent</li>
+                      <li>• "I'm tired" → Test mood detection</li>
+                      <li>• "Show me products under $50" → Test entity extraction</li>
+                      <li>• "Track my order" → Test order tracking intent</li>
+                    </ul>
                   </div>
                 )}
               </div>
             )}
-            
+
             {messages.map((message) => (
               <div
                 key={message.id}
                 className={`flex gap-3 ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
               >
                 {message.sender === 'bot' && (
-                  <Avatar className="h-8 w-8 bg-indigo-600 flex items-center justify-center">
+                  <Avatar className="h-8 w-8 bg-indigo-600 flex items-center justify-center flex-shrink-0">
                     <Bot className="h-5 w-5 text-white" />
                   </Avatar>
                 )}
@@ -308,15 +318,11 @@ export default function ChatPage() {
                     }`}
                   >
                     <p className="text-sm whitespace-pre-wrap">{message.text}</p>
-                    
-                    {/* Show NLU metadata for bot messages */}
-                    {message.sender === 'bot' && message.modelUsed && message.intent && (
-                      <div className="mt-3 pt-3 border-t border-indigo-100 dark:border-gray-700 space-y-1">
-                        <Badge variant="secondary" className="text-xs">
-                          <Sparkles className="h-3 w-3 mr-1" />
-                          NLU Model Used
-                        </Badge>
-                      </div>
+                    {message.sender === 'bot' && message.metadata?.model_used && (
+                      <Badge variant="secondary" className="mt-3 text-xs">
+                        <CheckCircle2 className="h-3 w-3 mr-1" />
+                        ✅ This is an NLU-powered response from your trained model!
+                      </Badge>
                     )}
                   </div>
                   
@@ -326,7 +332,7 @@ export default function ChatPage() {
                 </div>
 
                 {message.sender === 'user' && (
-                  <Avatar className="h-8 w-8 bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center">
+                  <Avatar className="h-8 w-8 bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center flex-shrink-0">
                     <User className="h-5 w-5 text-white" />
                   </Avatar>
                 )}
@@ -357,7 +363,10 @@ export default function ChatPage() {
             <Input
               value={inputMessage}
               onChange={(e) => setInputMessage(e.target.value)}
-              placeholder={hasTrainedModel ? "Test your NLU model..." : "Train a model first..."}
+              placeholder={hasTrainedModel 
+                ? "Type your message to test NLU... (e.g., 'I'm tired' or 'show products under $50')" 
+                : "Train a model first to test NLU capabilities..."
+              }
               disabled={isSending}
               className="flex-1"
             />
@@ -371,8 +380,8 @@ export default function ChatPage() {
           </form>
           <p className="text-xs text-muted-foreground mt-2 text-center">
             {hasTrainedModel 
-              ? '💡 Try different messages to see how the NLU model classifies intents and extracts entities'
-              : '⚠️ No trained model available - train a model in your workspace first'
+              ? "💡 Your trained model will classify intents and extract entities from your messages"
+              : "⚠️ No trained model - Go to your workspace to train a model first"
             }
           </p>
         </div>
