@@ -1,87 +1,328 @@
 [
   {
+    "text": "hello",
+    "intent": "greet",
+    "response": "Hello! Hi there! How can I help you today? I'm here to assist you with finding products, tracking orders, and answering any questions you have!",
+    "entities": []
+  },
+  {
+    "text": "hi there",
+    "intent": "greet",
+    "response": "Hello! Hi there! How can I help you today? I'm here to assist you with finding products, tracking orders, and answering any questions you have!",
+    "entities": []
+  },
+  {
+    "text": "hey",
+    "intent": "greet",
+    "response": "Hello! Hi there! How can I help you today? I'm here to assist you with finding products, tracking orders, and answering any questions you have!",
+    "entities": []
+  },
+  {
+    "text": "good morning",
+    "intent": "greet",
+    "response": "Hello! Hi there! How can I help you today? I'm here to assist you with finding products, tracking orders, and answering any questions you have!",
+    "entities": []
+  },
+  {
+    "text": "goodbye",
+    "intent": "goodbye",
+    "response": "Goodbye! Thank you for shopping with us! Have a wonderful day and come back soon!",
+    "entities": []
+  },
+  {
+    "text": "bye",
+    "intent": "goodbye",
+    "response": "Goodbye! Thank you for shopping with us! Have a wonderful day and come back soon!",
+    "entities": []
+  },
+  {
+    "text": "see you later",
+    "intent": "goodbye",
+    "response": "Goodbye! Thank you for shopping with us! Have a wonderful day and come back soon!",
+    "entities": []
+  },
+  {
     "text": "I want to buy shoes",
     "intent": "product_search",
-    "entities": []
-  },
-  {
-    "text": "Show me eco-friendly products",
-    "intent": "sustainability",
-    "entities": []
-  },
-  {
-    "text": "I'm feeling tired",
-    "intent": "mood_tired",
-    "entities": []
-  },
-  {
-    "text": "Track my order",
-    "intent": "track_order",
-    "entities": []
-  },
-  {
-    "text": "I'm stressed out",
-    "intent": "mood_stressed",
-    "entities": []
+    "response": "Great! I'd love to help you find the perfect shoes. We have a wide selection including running shoes, casual sneakers, dress shoes, and boots. What style are you interested in?",
+    "entities": [
+      {"start": 14, "end": 19, "entity": "product", "value": "shoes"}
+    ]
   },
   {
     "text": "Show me clothing",
     "intent": "product_search",
+    "response": "Absolutely! We have an amazing clothing collection including shirts, pants, dresses, jackets, and more. What type of clothing are you looking for?",
+    "entities": [
+      {"start": 8, "end": 16, "entity": "product", "value": "clothing"}
+    ]
+  },
+  {
+    "text": "I need headphones",
+    "intent": "product_search",
+    "response": "Perfect! We have a great selection of headphones including wireless, noise-canceling, gaming, and studio headphones. What features are most important to you?",
+    "entities": [
+      {"start": 7, "end": 17, "entity": "product", "value": "headphones"}
+    ]
+  },
+  {
+    "text": "Looking for running shoes",
+    "intent": "product_search",
+    "response": "Excellent choice! Running shoes are perfect for staying active. We have options for trail running, road running, and athletic training. What's your preferred terrain?",
+    "entities": [
+      {"start": 12, "end": 25, "entity": "product", "value": "running shoes"}
+    ]
+  },
+  {
+    "text": "Show me electronics",
+    "intent": "product_search",
+    "response": "Great! Our electronics department has smartphones, laptops, tablets, smartwatches, cameras, and accessories. What type of electronics are you interested in?",
+    "entities": [
+      {"start": 8, "end": 19, "entity": "product", "value": "electronics"}
+    ]
+  },
+  {
+    "text": "I want a laptop",
+    "intent": "product_search",
+    "response": "Excellent! We have laptops for every need - gaming, business, student, and creative work. What will you be using your laptop for primarily?",
+    "entities": [
+      {"start": 9, "end": 15, "entity": "product", "value": "laptop"}
+    ]
+  },
+  {
+    "text": "Show products under 50 dollars",
+    "intent": "price_filter",
+    "response": "Absolutely! I'll show you all our quality products under $50. We have great options including accessories, home goods, and small electronics at that price point!",
+    "entities": [
+      {"start": 20, "end": 22, "entity": "price", "value": "50"}
+    ]
+  },
+  {
+    "text": "Items below 100",
+    "intent": "price_filter",
+    "response": "Great budget! We have tons of options under $100 including clothing, accessories, home decor, and tech gadgets. Let me find the best deals for you!",
+    "entities": [
+      {"start": 12, "end": 15, "entity": "price", "value": "100"}
+    ]
+  },
+  {
+    "text": "Budget options under 200 dollars",
+    "intent": "price_filter",
+    "response": "Perfect! With a $200 budget, you have lots of choices including premium shoes, quality electronics, and stylish clothing. I'll help you find the best value!",
+    "entities": [
+      {"start": 21, "end": 24, "entity": "price", "value": "200"}
+    ]
+  },
+  {
+    "text": "Cheap products under 75",
+    "intent": "price_filter",
+    "response": "You got it! We have many affordable products under $75 that don't compromise on quality. Let me show you our best budget-friendly options!",
+    "entities": [
+      {"start": 21, "end": 23, "entity": "price", "value": "75"}
+    ]
+  },
+  {
+    "text": "Show me eco-friendly products",
+    "intent": "sustainability",
+    "response": "Wonderful! Sustainability is important to us. We have eco-friendly products made from recycled materials, organic cotton, bamboo, and sustainable sources. Every purchase helps protect our planet!",
     "entities": []
   },
   {
     "text": "What's the most sustainable option",
     "intent": "sustainability",
+    "response": "Great question! Our most sustainable products are certified organic, made from recycled materials, or support carbon-neutral manufacturing. Look for our green leaf eco-badge!",
+    "entities": []
+  },
+  {
+    "text": "I want green products",
+    "intent": "sustainability",
+    "response": "Excellent choice! Our green products include reusable items, biodegradable packaging, and ethically sourced materials. Together we can make a difference!",
+    "entities": []
+  },
+  {
+    "text": "Sustainable clothing options",
+    "intent": "sustainability",
+    "response": "Perfect! We have sustainable clothing made from organic cotton, recycled polyester, and hemp. These items are durable, eco-friendly, and stylish!",
+    "entities": []
+  },
+  {
+    "text": "I'm feeling tired",
+    "intent": "mood_tired",
+    "response": "You sound exhausted! Let me help you find cozy, comfortable items to help you relax. How about soft loungewear, comfy slippers, or relaxing aromatherapy products?",
+    "entities": []
+  },
+  {
+    "text": "I'm exhausted",
+    "intent": "mood_tired",
+    "response": "You sound exhausted! Let me help you find cozy, comfortable items to help you relax. How about soft loungewear, comfy slippers, or relaxing aromatherapy products?",
+    "entities": []
+  },
+  {
+    "text": "Need something cozy",
+    "intent": "mood_tired",
+    "response": "You sound exhausted! Let me help you find cozy, comfortable items to help you relax. How about soft loungewear, comfy slippers, or relaxing aromatherapy products?",
+    "entities": []
+  },
+  {
+    "text": "I'm stressed out",
+    "intent": "mood_stressed",
+    "response": "I understand stress can be overwhelming. How about some calming products like stress-relief candles, meditation cushions, or soothing tea sets? Take care of yourself!",
+    "entities": []
+  },
+  {
+    "text": "Feeling anxious",
+    "intent": "mood_stressed",
+    "response": "I understand stress can be overwhelming. How about some calming products like stress-relief candles, meditation cushions, or soothing tea sets? Take care of yourself!",
+    "entities": []
+  },
+  {
+    "text": "Need to relax",
+    "intent": "mood_stressed",
+    "response": "I understand stress can be overwhelming. How about some calming products like stress-relief candles, meditation cushions, or soothing tea sets? Take care of yourself!",
     "entities": []
   },
   {
     "text": "I feel excited",
     "intent": "mood_excited",
+    "response": "That's awesome energy! Let me show you exciting products to match your vibe - vibrant clothing, fun gadgets, or trendy accessories. Let's keep that energy going!",
     "entities": []
   },
   {
-    "text": "Where is my package",
-    "intent": "track_order",
+    "text": "I'm energized",
+    "intent": "mood_excited",
+    "response": "That's awesome energy! Let me show you exciting products to match your vibe - vibrant clothing, fun gadgets, or trendy accessories. Let's keep that energy going!",
+    "entities": []
+  },
+  {
+    "text": "Feeling pumped",
+    "intent": "mood_excited",
+    "response": "That's awesome energy! Let me show you exciting products to match your vibe - vibrant clothing, fun gadgets, or trendy accessories. Let's keep that energy going!",
     "entities": []
   },
   {
     "text": "I'm feeling lazy today",
     "intent": "mood_lazy",
+    "response": "No judgment here! Sometimes we all need lazy days. Check out our comfortable loungewear, easy-to-use gadgets, and home entertainment options. Relax and enjoy!",
     "entities": []
   },
   {
-    "text": "I want running shoes",
-    "intent": "product_search",
-    "entities": [
-      {
-        "entity": "product",
-        "value": "running shoes"
-      }
-    ]
-  },
-  {
-    "text": "Show products under 100 dollars",
-    "intent": "price_filter",
-    "entities": [
-      {
-        "entity": "price",
-        "value": "100"
-      }
-    ]
-  },
-  {
-    "text": "I need help",
-    "intent": "help",
+    "text": "Just want to chill",
+    "intent": "mood_lazy",
+    "response": "No judgment here! Sometimes we all need lazy days. Check out our comfortable loungewear, easy-to-use gadgets, and home entertainment options. Relax and enjoy!",
     "entities": []
   },
   {
-    "text": "Hello",
-    "intent": "greet",
+    "text": "Want to lounge",
+    "intent": "mood_lazy",
+    "response": "No judgment here! Sometimes we all need lazy days. Check out our comfortable loungewear, easy-to-use gadgets, and home entertainment options. Relax and enjoy!",
     "entities": []
   },
   {
     "text": "Looking for adventurous gear",
     "intent": "mood_adventurous",
+    "response": "Adventure awaits! We have outdoor gear, hiking equipment, camping supplies, and action cameras. Let's get you equipped for your next adventure!",
+    "entities": []
+  },
+  {
+    "text": "I want outdoor stuff",
+    "intent": "mood_adventurous",
+    "response": "Adventure awaits! We have outdoor gear, hiking equipment, camping supplies, and action cameras. Let's get you equipped for your next adventure!",
+    "entities": []
+  },
+  {
+    "text": "Ready for action",
+    "intent": "mood_adventurous",
+    "response": "Adventure awaits! We have outdoor gear, hiking equipment, camping supplies, and action cameras. Let's get you equipped for your next adventure!",
+    "entities": []
+  },
+  {
+    "text": "Track my order",
+    "intent": "track_order",
+    "response": "I can help you track your order! Please provide your order number and I'll check the status for you. You can also track orders in your account dashboard.",
+    "entities": []
+  },
+  {
+    "text": "Where is my package",
+    "intent": "track_order",
+    "response": "I can help you track your order! Please provide your order number and I'll check the status for you. You can also track orders in your account dashboard.",
+    "entities": []
+  },
+  {
+    "text": "Order status",
+    "intent": "track_order",
+    "response": "I can help you track your order! Please provide your order number and I'll check the status for you. You can also track orders in your account dashboard.",
+    "entities": []
+  },
+  {
+    "text": "When will my order arrive",
+    "intent": "track_order",
+    "response": "I can help you track your order! Please provide your order number and I'll check the status for you. You can also track orders in your account dashboard.",
+    "entities": []
+  },
+  {
+    "text": "I need help",
+    "intent": "help",
+    "response": "I'm here to help! I can assist you with product searches, order tracking, returns, account questions, and more. What do you need help with?",
+    "entities": []
+  },
+  {
+    "text": "Help me",
+    "intent": "help",
+    "response": "I'm here to help! I can assist you with product searches, order tracking, returns, account questions, and more. What do you need help with?",
+    "entities": []
+  },
+  {
+    "text": "What can you do",
+    "intent": "help",
+    "response": "I'm here to help! I can assist you with product searches, order tracking, returns, account questions, and more. What do you need help with?",
+    "entities": []
+  },
+  {
+    "text": "How do I return an item",
+    "intent": "return_request",
+    "response": "Returns are easy! You have 30 days to return most items. Just go to your order history, select the item, and choose 'Return Item'. We'll provide a prepaid shipping label!",
+    "entities": []
+  },
+  {
+    "text": "I want to return this",
+    "intent": "return_request",
+    "response": "Returns are easy! You have 30 days to return most items. Just go to your order history, select the item, and choose 'Return Item'. We'll provide a prepaid shipping label!",
+    "entities": []
+  },
+  {
+    "text": "Refund policy",
+    "intent": "return_request",
+    "response": "Returns are easy! You have 30 days to return most items. Just go to your order history, select the item, and choose 'Return Item'. We'll provide a prepaid shipping label!",
+    "entities": []
+  },
+  {
+    "text": "This product is amazing",
+    "intent": "feedback_positive",
+    "response": "Thank you so much! We're thrilled you love your purchase! Reviews like yours make our day. Would you mind leaving a review to help other shoppers?",
+    "entities": []
+  },
+  {
+    "text": "Great service",
+    "intent": "feedback_positive",
+    "response": "Thank you so much! We're thrilled you love your purchase! Reviews like yours make our day. Would you mind leaving a review to help other shoppers?",
+    "entities": []
+  },
+  {
+    "text": "I'm not satisfied with my purchase",
+    "intent": "feedback_negative",
+    "response": "I'm sorry to hear that! Your satisfaction is our priority. Please tell me what went wrong, and I'll do everything I can to make it right. Would you like a return, exchange, or refund?",
+    "entities": []
+  },
+  {
+    "text": "This is not what I expected",
+    "intent": "feedback_negative",
+    "response": "I'm sorry to hear that! Your satisfaction is our priority. Please tell me what went wrong, and I'll do everything I can to make it right. Would you like a return, exchange, or refund?",
+    "entities": []
+  },
+  {
+    "text": "Product quality is poor",
+    "intent": "feedback_negative",
+    "response": "I'm sorry to hear that! Your satisfaction is our priority. Please tell me what went wrong, and I'll do everything I can to make it right. Would you like a return, exchange, or refund?",
     "entities": []
   }
 ]

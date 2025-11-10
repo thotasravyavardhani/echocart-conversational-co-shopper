@@ -358,15 +358,20 @@ def convert_to_rasa_format(file_path: str, format: str, output_path: str) -> Dic
             # Already in Rasa format, just copy
             shutil.copy(file_path, output_path)
             
-            # Try to extract responses from domain or responses section
+            # Try to extract responses from YAML responses section
             with open(file_path, 'r', encoding='utf-8') as f:
                 rasa_data = yaml.safe_load(f)
             
+            # Extract from responses section (format: utter_{intent})
             if 'responses' in rasa_data:
-                for intent, response_list in rasa_data['responses'].items():
-                    if response_list and len(response_list) > 0:
-                        intent_responses[intent] = response_list[0].get('text', '')
+                for response_key, response_list in rasa_data['responses'].items():
+                    # Convert utter_greet -> greet
+                    if response_key.startswith('utter_'):
+                        intent = response_key.replace('utter_', '')
+                        if response_list and len(response_list) > 0:
+                            intent_responses[intent] = response_list[0].get('text', '')
             
+            print(f"✅ Extracted {len(intent_responses)} intent responses from YAML")
             return validate_rasa_format(file_path)
         
         # Write to YAML

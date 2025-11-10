@@ -1,6 +1,26 @@
 version: "3.1"
 
 nlu:
+- intent: greet
+  examples: |
+    - hello
+    - hi there
+    - hey
+    - good morning
+    - what's up
+    - hi
+    - good afternoon
+    - good evening
+
+- intent: goodbye
+  examples: |
+    - goodbye
+    - bye
+    - see you later
+    - see you
+    - talk to you later
+    - catch you later
+
 - intent: product_search
   examples: |
     - I want to buy [shoes](product)
@@ -8,6 +28,21 @@ nlu:
     - Looking for [running shoes](product)
     - I need [headphones](product)
     - Show me [electronics](product)
+    - I want a [laptop](product)
+    - Find me [sneakers](product)
+    - Search for [smartphones](product)
+    - Show [jackets](product)
+    - I'm looking for [watches](product)
+
+- intent: price_filter
+  examples: |
+    - Show products under [50](price) dollars
+    - Items below [100](price)
+    - Budget options under [200](price) dollars
+    - Cheap products under [75](price)
+    - Affordable items below [150](price)
+    - Products under [300](price)
+    - Things below [25](price) dollars
 
 - intent: sustainability
   examples: |
@@ -16,6 +51,9 @@ nlu:
     - I want green products
     - Show me environmentally friendly items
     - Sustainable clothing options
+    - Organic products
+    - Eco-conscious items
+    - Recycled materials
 
 - intent: mood_tired
   examples: |
@@ -24,6 +62,8 @@ nlu:
     - Need something cozy
     - Feeling sleepy
     - I'm worn out
+    - So tired today
+    - Need rest
 
 - intent: mood_stressed
   examples: |
@@ -32,6 +72,8 @@ nlu:
     - Need to relax
     - I'm overwhelmed
     - Help me destress
+    - Feeling tense
+    - Too much pressure
 
 - intent: mood_excited
   examples: |
@@ -40,6 +82,8 @@ nlu:
     - Feeling pumped
     - I'm thrilled
     - Full of energy
+    - So happy today
+    - Feeling great
 
 - intent: mood_lazy
   examples: |
@@ -48,6 +92,8 @@ nlu:
     - Lazy mood
     - Want to lounge
     - Feeling unmotivated
+    - Don't want to do anything
+    - Couch potato mode
 
 - intent: mood_adventurous
   examples: |
@@ -56,6 +102,8 @@ nlu:
     - Feeling adventurous
     - Ready for action
     - Active lifestyle products
+    - Outdoor adventure
+    - Need hiking gear
 
 - intent: track_order
   examples: |
@@ -64,14 +112,8 @@ nlu:
     - Order status
     - Delivery tracking
     - When will my order arrive
-
-- intent: price_filter
-  examples: |
-    - Show products under [100](price) dollars
-    - Items below [50](price)
-    - Budget options under [200](price)
-    - Cheap products under [75](price)
-    - Affordable items below [150](price)
+    - Check my shipment
+    - Package location
 
 - intent: help
   examples: |
@@ -80,11 +122,79 @@ nlu:
     - What can you do
     - How does this work
     - Assist me
+    - Can you help
+    - Support needed
 
-- intent: greet
+- intent: return_request
   examples: |
-    - Hello
-    - Hi there
-    - Hey
-    - Good morning
-    - What's up
+    - How do I return an item
+    - I want to return this
+    - Refund policy
+    - Return process
+    - Send this back
+    - Exchange item
+
+- intent: feedback_positive
+  examples: |
+    - This product is amazing
+    - Great service
+    - Love it
+    - Excellent quality
+    - Best purchase ever
+    - Very satisfied
+    - Highly recommend
+
+- intent: feedback_negative
+  examples: |
+    - I'm not satisfied with my purchase
+    - This is not what I expected
+    - Product quality is poor
+    - Disappointed
+    - Not happy with this
+    - Bad experience
+
+responses:
+  utter_greet:
+    - text: "Hello! Hi there! How can I help you today? I'm here to assist you with finding products, tracking orders, and answering any questions you have!"
+  
+  utter_goodbye:
+    - text: "Goodbye! Thank you for shopping with us! Have a wonderful day and come back soon!"
+  
+  utter_product_search:
+    - text: "Great! I'd love to help you find the perfect products. We have a wide selection including shoes, clothing, electronics, and more. What are you looking for?"
+  
+  utter_price_filter:
+    - text: "Absolutely! I'll show you all our quality products within your budget. We have great options at various price points to suit your needs!"
+  
+  utter_sustainability:
+    - text: "Wonderful! Sustainability is important to us. We have eco-friendly products made from recycled materials, organic cotton, bamboo, and sustainable sources. Every purchase helps protect our planet!"
+  
+  utter_mood_tired:
+    - text: "You sound exhausted! Let me help you find cozy, comfortable items to help you relax. How about soft loungewear, comfy slippers, or relaxing aromatherapy products?"
+  
+  utter_mood_stressed:
+    - text: "I understand stress can be overwhelming. How about some calming products like stress-relief candles, meditation cushions, or soothing tea sets? Take care of yourself!"
+  
+  utter_mood_excited:
+    - text: "That's awesome energy! Let me show you exciting products to match your vibe - vibrant clothing, fun gadgets, or trendy accessories. Let's keep that energy going!"
+  
+  utter_mood_lazy:
+    - text: "No judgment here! Sometimes we all need lazy days. Check out our comfortable loungewear, easy-to-use gadgets, and home entertainment options. Relax and enjoy!"
+  
+  utter_mood_adventurous:
+    - text: "Adventure awaits! We have outdoor gear, hiking equipment, camping supplies, and action cameras. Let's get you equipped for your next adventure!"
+  
+  utter_track_order:
+    - text: "I can help you track your order! Please provide your order number and I'll check the status for you. You can also track orders in your account dashboard."
+  
+  utter_help:
+    - text: "I'm here to help! I can assist you with product searches, order tracking, returns, account questions, and more. What do you need help with?"
+  
+  utter_return_request:
+    - text: "Returns are easy! You have 30 days to return most items. Just go to your order history, select the item, and choose 'Return Item'. We'll provide a prepaid shipping label!"
+  
+  utter_feedback_positive:
+    - text: "Thank you so much! We're thrilled you love your purchase! Reviews like yours make our day. Would you mind leaving a review to help other shoppers?"
+  
+  utter_feedback_negative:
+    - text: "I'm sorry to hear that! Your satisfaction is our priority. Please tell me what went wrong, and I'll do everything I can to make it right. Would you like a return, exchange, or refund?"
